@@ -257,8 +257,8 @@ def _build_hvplot_chart(kind: str, df: pd.DataFrame, x: str, y: str,
             kwargs["by"] = color
         else:
             kwargs["color"] = CHART_PALETTE[0]
-        # Add hover with all columns for rich tooltips
-        kwargs["hover_cols"] = "all"
+            # hover_cols="all" only works without grouping (by= transforms data lengths)
+            kwargs["hover_cols"] = "all"
         plot = simple_methods[kind](**kwargs)
 
     elif kind == "histogram":
@@ -308,7 +308,7 @@ def _build_hvplot_chart(kind: str, df: pd.DataFrame, x: str, y: str,
             kwargs["c"] = color
         else:
             kwargs["color"] = CHART_PALETTE[0]
-        kwargs["hover_cols"] = "all"
+            kwargs["hover_cols"] = "all"
         try:
             plot = df.hvplot.points(**kwargs)
         except Exception:
@@ -1187,11 +1187,12 @@ def create_multi_chart(
                 pal_color = CHART_PALETTE[i % len(CHART_PALETTE)]
 
                 if kind in simple:
-                    kw = {**base, "x": cx, "y": cy, "hover_cols": "all"}
+                    kw = {**base, "x": cx, "y": cy}
                     if has_group:
                         kw["by"] = ccolor
                     else:
                         kw["color"] = pal_color
+                        kw["hover_cols"] = "all"
                     plot = getattr(df.hvplot, kind)(**kw)
                 elif kind == "histogram":
                     kw = {**base, "y": cy, "color": pal_color}
