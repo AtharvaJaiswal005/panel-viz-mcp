@@ -78,6 +78,7 @@ THEME_COLORS = {
 # CSS variables for HTML resources - shared across all views
 _CSS_THEME_VARS = """
     body.theme-dark {
+      --bg-body: #0f172a;
       --text-primary: #e0e0e0; --text-secondary: #94a3b8; --text-muted: #64748b;
       --bg-card: rgba(30,41,59,0.6); --bg-surface: rgba(15,23,42,0.5);
       --border: #334155; --accent: #818cf8; --accent-bg: rgba(99,102,241,0.08);
@@ -86,6 +87,7 @@ _CSS_THEME_VARS = """
       --stat-value: #818cf8; --table-header-bg: #1e293b;
     }
     body.theme-light {
+      --bg-body: #ffffff;
       --text-primary: #1f2937; --text-secondary: #6b7280; --text-muted: #9ca3af;
       --bg-card: rgba(255,255,255,0.9); --bg-surface: rgba(249,250,251,0.8);
       --border: #e5e7eb; --accent: #6366f1; --accent-bg: rgba(99,102,241,0.06);
@@ -302,19 +304,33 @@ def _build_hvplot_chart(kind: str, df: pd.DataFrame, x: str, y: str,
         plot = df.hvplot.hexbin(**kwargs)
 
     elif kind == "points":
-        kwargs = {**base, "x": x, "y": y, "geo": True, "tiles": "CartoDark"}
-        kwargs["height"] = 400
+        # Geo charts can't use responsive=True (conflicts with fixed aspect)
+        geo_base = {"title": title, "frame_height": 400, "frame_width": 600}
+        kwargs = {**geo_base, "x": x, "y": y, "geo": True, "tiles": "CartoDark"}
         if color and color in df.columns:
             kwargs["c"] = color
         else:
             kwargs["color"] = CHART_PALETTE[0]
             kwargs["hover_cols"] = "all"
         try:
+            import geoviews  # noqa: F401
             plot = df.hvplot.points(**kwargs)
+        except ImportError:
+            # Fallback to scatter with proper labeling when geoviews not installed
+            kwargs = {**base, "x": x, "y": y}
+            if color and color in df.columns:
+                kwargs["by"] = color
+            else:
+                kwargs["color"] = CHART_PALETTE[0]
+                kwargs["hover_cols"] = "all"
+            plot = df.hvplot.scatter(**kwargs)
         except Exception:
             kwargs.pop("geo", None)
             kwargs.pop("tiles", None)
-            plot = df.hvplot.scatter(**kwargs)
+            kwargs.pop("frame_height", None)
+            kwargs.pop("frame_width", None)
+            fallback = {**base, "x": x, "y": y, "color": CHART_PALETTE[0]}
+            plot = df.hvplot.scatter(**fallback)
 
     else:
         raise ValueError(f"Unsupported chart type: {kind}")
@@ -1370,20 +1386,31 @@ def launch_panel(viz_id: str) -> str:
         process = subprocess.Popen(
             [sys.executable, "-m", "panel", "serve", script_path,
              "--port", str(port), "--allow-websocket-origin", "*"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
 
         url = f"http://localhost:{port}/app"
         _panel_servers[viz_id] = {"process": process, "port": port, "url": url, "tmp_dir": tmp_dir}
 
         # Wait for Panel server to be ready before opening browser
-        for _ in range(30):  # up to 6 seconds
+        ready = False
+        for _ in range(60):  # up to 15 seconds
+            if process.poll() is not None:
+                del _panel_servers[viz_id]
+                return json.dumps({"action": "error", "message": "Panel server crashed on startup"})
             try:
                 with socket.create_connection(("localhost", port), timeout=0.5):
+                    ready = True
                     break
             except OSError:
-                time.sleep(0.2)
+                time.sleep(0.25)
+
+        if not ready:
+            return json.dumps({"action": "error", "message": f"Panel server not ready after 15s (port {port})"})
+
+        # Extra delay for HTTP layer to initialize after socket is open
+        time.sleep(1.0)
 
         try:
             webbrowser.open(url)
@@ -1462,7 +1489,7 @@ def viz_view() -> str:
         f'{_CSS_THEME_VARS}\n'
         "    body {\n"
         '      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;\n'
-        "      background: transparent; color: var(--text-primary); padding: 8px;\n"
+        "      background: var(--bg-body); color: var(--text-primary); padding: 8px;\n"
         "    }\n"
         "    #chart-container { width: 100%; min-height: 320px; border-radius: 8px; overflow: hidden; }\n"
         "    #status { font-size: 12px; color: var(--text-muted); padding: 4px 0; text-align: center; }\n"
@@ -1726,7 +1753,7 @@ def dashboard_view() -> str:
         f'{_CSS_THEME_VARS}\n'
         "    body {\n"
         '      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;\n'
-        "      background: transparent; color: var(--text-primary); padding: 12px;\n"
+        "      background: var(--bg-body); color: var(--text-primary); padding: 12px;\n"
         "    }\n"
         "    .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }\n"
         "    .dashboard-title { font-size: 18px; font-weight: 600; }\n"
@@ -2096,7 +2123,7 @@ def stream_view() -> str:
         f'{_CSS_THEME_VARS}\n'
         "    body {\n"
         '      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;\n'
-        "      background: transparent; color: var(--text-primary); padding: 12px;\n"
+        "      background: var(--bg-body); color: var(--text-primary); padding: 12px;\n"
         "    }\n"
         "    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }\n"
         "    .title { font-size: 16px; font-weight: 600; }\n"
@@ -2306,7 +2333,7 @@ def multi_view() -> str:
         f'{_CSS_THEME_VARS}\n'
         "    body {\n"
         '      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;\n'
-        "      background: transparent; color: var(--text-primary); padding: 12px;\n"
+        "      background: var(--bg-body); color: var(--text-primary); padding: 12px;\n"
         "    }\n"
         "    .multi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }\n"
         "    .multi-title { font-size: 18px; font-weight: 600; }\n"
