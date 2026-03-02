@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 import uuid
 import webbrowser
 
@@ -1367,7 +1368,7 @@ def launch_panel(viz_id: str) -> str:
 
         process = subprocess.Popen(
             [sys.executable, "-m", "panel", "serve", script_path,
-             "--port", str(port), "--show", "--allow-websocket-origin", "*"],
+             "--port", str(port), "--allow-websocket-origin", "*"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -1375,17 +1376,25 @@ def launch_panel(viz_id: str) -> str:
         url = f"http://localhost:{port}/app"
         _panel_servers[viz_id] = {"process": process, "port": port, "url": url, "tmp_dir": tmp_dir}
 
+        # Wait for Panel server to be ready before opening browser
+        for _ in range(30):  # up to 6 seconds
+            try:
+                with socket.create_connection(("localhost", port), timeout=0.5):
+                    break
+            except OSError:
+                time.sleep(0.2)
+
         try:
             webbrowser.open(url)
         except Exception:
-            pass  # Headless server fallback - user gets URL in response
+            pass
 
         return json.dumps({
             "action": "panel_launched",
             "id": viz_id,
             "url": url,
             "port": port,
-            "message": f"Panel app launched at {url}. Opening in browser.",
+            "message": f"Panel app launched at {url}",
         })
     except Exception as e:
         return json.dumps({"action": "error", "message": f"Failed to launch Panel: {str(e)}"})
@@ -1810,10 +1819,26 @@ def dashboard_view() -> str:
         "    let currentVizId = null;\n"
         '    let currentTheme = "dark";\n'
         "\n"
-        "    window.toggleTheme = () => {\n"
+        "    window.toggleTheme = async () => {\n"
         '      currentTheme = currentTheme === "dark" ? "light" : "dark";\n'
         '      document.body.className = "theme-" + currentTheme;\n'
         '      document.getElementById("theme-btn").textContent = currentTheme === "dark" ? "Light Mode" : "Dark Mode";\n'
+        "      if (currentVizId) {\n"
+        "        try {\n"
+        "          const response = await app.callServerTool({\n"
+        '            name: "set_theme",\n'
+        "            arguments: { viz_id: currentVizId, theme: currentTheme },\n"
+        "          });\n"
+        '          const t = response?.content?.find(c => c.type === "text");\n'
+        "          if (t) {\n"
+        "            const r = JSON.parse(t.text);\n"
+        '            if (r.action === "theme_change" && r.figure) {\n'
+        '              document.getElementById("chart").innerHTML = "";\n'
+        "              await Bokeh.embed.embed_item(r.figure);\n"
+        "            }\n"
+        "          }\n"
+        "        } catch (err) { console.log('Theme switch:', err); }\n"
+        "      }\n"
         "    };\n"
         "\n"
         "    window.openInPanel = async () => {\n"
