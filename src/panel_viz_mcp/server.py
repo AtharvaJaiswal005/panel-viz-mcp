@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import time
 import urllib.request
 import uuid
@@ -1394,32 +1395,28 @@ def launch_panel(viz_id: str) -> str:
         url = f"http://localhost:{port}/app"
         _panel_servers[viz_id] = {"process": process, "port": port, "url": url, "tmp_dir": tmp_dir}
 
-        # Wait for Panel HTTP server to be fully ready before opening browser
-        # Socket opens in ~0.5s but HTTP takes ~7-8s to initialize
-        ready = False
-        for _ in range(40):  # up to ~12 seconds
-            if process.poll() is not None:
-                del _panel_servers[viz_id]
-                return json.dumps({"action": "error", "message": "Panel server crashed on startup"})
-            try:
-                req = urllib.request.urlopen(url, timeout=1)
-                req.close()
-                ready = True
-                break
-            except Exception:
-                time.sleep(0.3)
+        # Wait for HTTP ready in background thread, then open browser
+        # This way the tool returns instantly (MCP clients time out on long calls)
+        def _wait_and_open():
+            for _ in range(40):  # up to ~12 seconds
+                if process.poll() is not None:
+                    return
+                try:
+                    req = urllib.request.urlopen(url, timeout=1)
+                    req.close()
+                    webbrowser.open(url)
+                    return
+                except Exception:
+                    time.sleep(0.3)
 
-        try:
-            webbrowser.open(url)
-        except Exception:
-            pass
+        threading.Thread(target=_wait_and_open, daemon=True).start()
 
         return json.dumps({
             "action": "panel_launched",
             "id": viz_id,
             "url": url,
             "port": port,
-            "message": f"Panel app launched at {url}",
+            "message": f"Panel app launching at {url} (opens when ready)",
         })
     except Exception as e:
         return json.dumps({"action": "error", "message": f"Failed to launch Panel: {str(e)}"})
