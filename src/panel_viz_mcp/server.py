@@ -306,33 +306,15 @@ def _build_hvplot_chart(kind: str, df: pd.DataFrame, x: str, y: str,
         plot = df.hvplot.hexbin(**kwargs)
 
     elif kind == "points":
-        # Geo charts can't use responsive=True (conflicts with fixed aspect)
-        geo_base = {"title": title, "frame_height": 400, "frame_width": 600}
-        kwargs = {**geo_base, "x": x, "y": y, "geo": True, "tiles": "CartoDark"}
+        # MCP Apps iframe blocks tile images via CSP, so render as a clean
+        # scatter plot with proper axis labels. Full geo tiles work in "Open in Panel".
+        kwargs = {**base, "x": x, "y": y, "s": 80}
         if color and color in df.columns:
-            kwargs["c"] = color
+            kwargs["by"] = color
         else:
             kwargs["color"] = CHART_PALETTE[0]
             kwargs["hover_cols"] = "all"
-        try:
-            import geoviews  # noqa: F401
-            plot = df.hvplot.points(**kwargs)
-        except ImportError:
-            # Fallback to scatter with proper labeling when geoviews not installed
-            kwargs = {**base, "x": x, "y": y}
-            if color and color in df.columns:
-                kwargs["by"] = color
-            else:
-                kwargs["color"] = CHART_PALETTE[0]
-                kwargs["hover_cols"] = "all"
-            plot = df.hvplot.scatter(**kwargs)
-        except Exception:
-            kwargs.pop("geo", None)
-            kwargs.pop("tiles", None)
-            kwargs.pop("frame_height", None)
-            kwargs.pop("frame_width", None)
-            fallback = {**base, "x": x, "y": y, "color": CHART_PALETTE[0]}
-            plot = df.hvplot.scatter(**fallback)
+        plot = df.hvplot.scatter(**kwargs)
 
     else:
         raise ValueError(f"Unsupported chart type: {kind}")
@@ -597,17 +579,27 @@ def _generate_panel_code(viz: dict) -> str:
 
         pn.extension("floatpanel", "tabulator", sizing_mode="stretch_width")
 
+        # --- Data ---
         data = json.loads("""{data_json}""")
         df = pd.DataFrame(data)
 
-        CHART_TYPES = ["bar", "line", "scatter", "area", "histogram",
-                       "box", "violin", "kde", "step"]
+        CHART_TYPES = ["bar", "line", "scatter", "area", "step",
+                       "histogram", "box", "violin", "kde"]
+        PALETTES = {{
+            "Default": None, "Category10": "Category10",
+            "Viridis": "Viridis", "Plasma": "Plasma",
+            "Inferno": "Inferno", "Magma": "Magma",
+        }}
 
         categorical_cols = [c for c in df.columns if df[c].dtype == "object"]
         numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
         all_cols = list(df.columns)
 
-        # --- Filter widgets ---
+        # ========================= SIDEBAR FILTERS =========================
+        filter_header = pn.pane.Markdown(
+            "### Filters\\nNarrow down the data",
+            styles={{"margin-bottom": "10px"}},
+        )
         filter_widgets = {{}}
         for col in categorical_cols:
             opts = ["All"] + sorted(df[col].unique().tolist())
@@ -616,9 +608,23 @@ def _generate_panel_code(viz: dict) -> str:
             filter_widgets[col] = pn.widgets.RangeSlider(
                 name=col, start=float(df[col].min()), end=float(df[col].max()),
                 value=(float(df[col].min()), float(df[col].max())),
+                bar_color="#818cf8",
             )
 
-        # --- Inspector widgets (FloatPanel) ---
+        download_btn = pn.widgets.FileDownload(
+            callback=lambda: df.to_csv(index=False).encode(),
+            filename="data.csv",
+            button_type="primary",
+            label="Download CSV",
+            width=200,
+        )
+
+        sidebar_items = [filter_header]
+        sidebar_items.extend(filter_widgets.values())
+        sidebar_items.append(pn.layout.Divider())
+        sidebar_items.append(download_btn)
+
+        # ========================= CHART INSPECTOR =========================
         chart_type_w = pn.widgets.Select(name="Chart Type", options=CHART_TYPES, value="{kind}")
         x_w = pn.widgets.Select(name="X Axis", options=all_cols, value="{x_col}")
         y_w = pn.widgets.Select(name="Y Axis", options=numeric_cols, value="{y_col}")
@@ -627,7 +633,10 @@ def _generate_panel_code(viz: dict) -> str:
             value={repr(color)} if {repr(color)} else "None",
         )
         title_w = pn.widgets.TextInput(name="Title", value="{title}")
+        palette_w = pn.widgets.Select(name="Palette", options=list(PALETTES.keys()), value="Default")
+        height_w = pn.widgets.IntSlider(name="Chart Height", start=250, end=800, value=450, step=50)
 
+        # ========================= REACTIVE FUNCTIONS =========================
         def get_filtered_df(**kwargs):
             filtered = df.copy()
             for col, val in kwargs.items():
@@ -637,14 +646,16 @@ def _generate_panel_code(viz: dict) -> str:
                     filtered = filtered[(filtered[col] >= val[0]) & (filtered[col] <= val[1])]
             return filtered
 
-        @pn.depends(chart_type_w, x_w, y_w, color_w, title_w,
+        @pn.depends(chart_type_w, x_w, y_w, color_w, title_w, palette_w, height_w,
                     **{{k: v for k, v in filter_widgets.items()}})
-        def main_chart(ct, x, y, clr, ttl, **kwargs):
+        def main_chart(ct, x, y, clr, ttl, pal, h, **kwargs):
             filtered = get_filtered_df(**kwargs)
             if filtered.empty:
-                return pn.pane.Markdown("**No data matches current filters**")
+                return pn.pane.Alert("No data matches current filters.", alert_type="warning")
             c = clr if clr != "None" else None
-            base = {{"title": ttl, "responsive": True, "height": 450}}
+            base = {{"title": ttl, "responsive": True, "height": h}}
+            if PALETTES.get(pal):
+                base["cmap"] = PALETTES[pal]
             simple = {{"bar", "line", "scatter", "area", "step"}}
             try:
                 if ct in simple:
@@ -659,7 +670,7 @@ def _generate_panel_code(viz: dict) -> str:
                     return filtered.hvplot.hist(**pk)
                 elif ct in ("box", "violin"):
                     pk = {{**base, "y": y}}
-                    if x and filtered[x].dtype == "object":
+                    if x and x in filtered.columns and filtered[x].dtype == "object":
                         pk["by"] = x
                     return getattr(filtered.hvplot, ct)(**pk)
                 elif ct == "kde":
@@ -670,7 +681,7 @@ def _generate_panel_code(viz: dict) -> str:
                 else:
                     return filtered.hvplot.bar(**{{**base, "x": x, "y": y}})
             except Exception as e:
-                return pn.pane.Markdown(f"**Chart error:** {{e}}")
+                return pn.pane.Alert(f"Chart error: {{e}}", alert_type="danger")
 
         @pn.depends(**{{k: v for k, v in filter_widgets.items()}})
         def indicators(**kwargs):
@@ -678,37 +689,82 @@ def _generate_panel_code(viz: dict) -> str:
             if filtered.empty or "{y_col}" not in filtered.columns:
                 return pn.pane.Markdown("No data")
             s = filtered["{y_col}"]
-            return pn.Row(
-                pn.indicators.Number(name="Count", value=int(s.count()), format="{{value}}", default_color="#818cf8"),
-                pn.indicators.Number(name="Mean", value=round(float(s.mean()), 1), format="{{value:,.1f}}", default_color="#4ade80"),
-                pn.indicators.Number(name="Min", value=round(float(s.min()), 1), format="{{value:,.1f}}", default_color="#f59e0b"),
-                pn.indicators.Number(name="Max", value=round(float(s.max()), 1), format="{{value:,.1f}}", default_color="#ef4444"),
+            return pn.FlexBox(
+                pn.indicators.Number(
+                    name="Rows", value=int(len(filtered)), format="{{value:,}}",
+                    default_color="currentcolor", font_size="28px",
+                    title_size="12px", styles={{"border-left": "3px solid #818cf8", "padding-left": "12px"}},
+                ),
+                pn.indicators.Number(
+                    name="Mean", value=round(float(s.mean()), 2), format="{{value:,.2f}}",
+                    default_color="currentcolor", font_size="28px",
+                    title_size="12px", styles={{"border-left": "3px solid #4ade80", "padding-left": "12px"}},
+                ),
+                pn.indicators.Number(
+                    name="Sum", value=round(float(s.sum()), 2), format="{{value:,.2f}}",
+                    default_color="currentcolor", font_size="28px",
+                    title_size="12px", styles={{"border-left": "3px solid #f59e0b", "padding-left": "12px"}},
+                ),
+                pn.indicators.Number(
+                    name="Min", value=round(float(s.min()), 2), format="{{value:,.2f}}",
+                    default_color="currentcolor", font_size="28px",
+                    title_size="12px", styles={{"border-left": "3px solid #38bdf8", "padding-left": "12px"}},
+                ),
+                pn.indicators.Number(
+                    name="Max", value=round(float(s.max()), 2), format="{{value:,.2f}}",
+                    default_color="currentcolor", font_size="28px",
+                    title_size="12px", styles={{"border-left": "3px solid #ef4444", "padding-left": "12px"}},
+                ),
             )
 
         @pn.depends(**{{k: v for k, v in filter_widgets.items()}})
         def data_table(**kwargs):
             filtered = get_filtered_df(**kwargs)
             return pn.widgets.Tabulator(
-                filtered, height=300, show_index=False,
+                filtered, height=350, show_index=False,
                 theme="midnight", page_size=25,
+                frozen_columns=[filtered.columns[0]] if len(filtered.columns) > 3 else [],
+                header_filters=True,
             )
 
+        @pn.depends(**{{k: v for k, v in filter_widgets.items()}})
+        def data_summary(**kwargs):
+            filtered = get_filtered_df(**kwargs)
+            if filtered.empty:
+                return pn.pane.Markdown("No data")
+            desc = filtered.describe().round(2)
+            return pn.pane.DataFrame(desc, width=400)
+
+        # ========================= LAYOUT =========================
         inspector = pn.layout.FloatPanel(
-            pn.Column(chart_type_w, x_w, y_w, color_w, title_w),
+            pn.Column(chart_type_w, x_w, y_w, color_w, palette_w, height_w, title_w),
             name="Chart Inspector",
             contained=False,
             position="right-top",
             margin=20,
         )
 
-        sidebar = pn.Column("## Filters", *filter_widgets.values(), width=250)
-        main_area = pn.Column(indicators, main_chart, data_table)
+        tabs = pn.Tabs(
+            ("Table", data_table),
+            ("Summary", data_summary),
+            dynamic=True,
+        )
+
+        main_area = pn.Column(
+            indicators,
+            pn.layout.Divider(),
+            main_chart,
+            pn.layout.Divider(),
+            tabs,
+        )
 
         pn.template.FastListTemplate(
             title="{title}",
-            sidebar=[sidebar],
+            sidebar=sidebar_items,
             main=[main_area, inspector],
             theme="dark",
+            accent_base_color="#818cf8",
+            header_background="#1e293b",
         ).servable()
     ''')
 
