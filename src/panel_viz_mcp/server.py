@@ -11,6 +11,7 @@ import sys
 import tempfile
 import textwrap
 import time
+import urllib.request
 import uuid
 import webbrowser
 
@@ -1393,25 +1394,20 @@ def launch_panel(viz_id: str) -> str:
         url = f"http://localhost:{port}/app"
         _panel_servers[viz_id] = {"process": process, "port": port, "url": url, "tmp_dir": tmp_dir}
 
-        # Wait for Panel server to be ready before opening browser
+        # Wait for Panel HTTP server to be fully ready before opening browser
+        # Socket opens in ~0.5s but HTTP takes ~7-8s to initialize
         ready = False
-        for _ in range(25):  # up to ~5 seconds
+        for _ in range(40):  # up to ~12 seconds
             if process.poll() is not None:
                 del _panel_servers[viz_id]
                 return json.dumps({"action": "error", "message": "Panel server crashed on startup"})
             try:
-                with socket.create_connection(("localhost", port), timeout=0.3):
-                    ready = True
-                    break
-            except OSError:
-                time.sleep(0.2)
-
-        if not ready:
-            # Return URL anyway - user can refresh when ready
-            pass
-        else:
-            # Brief pause for HTTP layer after socket connect
-            time.sleep(0.5)
+                req = urllib.request.urlopen(url, timeout=1)
+                req.close()
+                ready = True
+                break
+            except Exception:
+                time.sleep(0.3)
 
         try:
             webbrowser.open(url)
