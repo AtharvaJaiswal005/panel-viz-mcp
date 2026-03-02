@@ -112,8 +112,12 @@ async def main():
         })
         result = json.loads(r.content[0].text)
         assert result["action"] == "multi_chart" and result["chart_count"] == 2
-        assert len(result["figures"]) == 2
-        print(f"  action={result['action']}, charts={result['chart_count']} - PASS")
+        if result.get("linked"):
+            assert "figure" in result
+            print(f"  action={result['action']}, charts={result['chart_count']}, linked=True - PASS")
+        else:
+            assert len(result["figures"]) == 2
+            print(f"  action={result['action']}, charts={result['chart_count']}, linked=False - PASS")
 
         # 11. annotate_viz
         print("=== 11. annotate_viz ===")
@@ -269,6 +273,20 @@ async def main():
         assert result["action"] == "error"
         print(f"  action={result['action']} - PASS")
 
-        print(f"\n ALL 24 TESTS PASSED!")
+        # 25. verify Panel code generation (ast.parse)
+        print("=== 25. Panel code gen (syntax check) ===")
+        import ast
+        from panel_viz_mcp.server import _generate_panel_code, _viz_store
+        # Use the first viz we created (bar chart)
+        test_viz = _viz_store[viz_id]
+        code = _generate_panel_code(test_viz)
+        ast.parse(code)  # Raises SyntaxError if invalid
+        assert "pn.extension" in code
+        assert "FloatPanel" in code
+        assert "Tabulator" in code
+        assert "FastListTemplate" in code
+        print(f"  code length={len(code)}, syntax=valid - PASS")
+
+        print(f"\n ALL 25 TESTS PASSED!")
 
 asyncio.run(main())

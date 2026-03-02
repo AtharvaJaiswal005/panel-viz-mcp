@@ -23,8 +23,10 @@ from bokeh.models import (
     BoxAnnotation,
     ColumnDataSource,
     CustomJS,
+    HoverTool,
     Label,
     NormalHead,
+    NumeralTickFormatter,
     Span,
     TapTool,
 )
@@ -90,6 +92,29 @@ _CSS_THEME_VARS = """
       --btn-bg: #f9fafb; --btn-border: #d1d5db; --input-bg: #ffffff;
       --stat-value: #6366f1; --table-header-bg: #f3f4f6;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .loading {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 10px; min-height: 200px;
+      color: var(--text-muted); font-size: 13px;
+    }
+    .error-box {
+      background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2);
+      border-radius: 8px; padding: 20px; text-align: center; margin: 12px 0;
+    }
+    .error-box .error-title { color: var(--error); font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .error-box .error-detail { color: var(--text-muted); font-size: 12px; }
+    .error-box .error-hint { color: var(--text-muted); font-size: 11px; margin-top: 8px; opacity: 0.7; }
+    .sample-notice {
+      background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 6px; padding: 6px 12px; font-size: 11px;
+      color: var(--warning); text-align: center; margin: 4px 0;
+    }
 """
 
 # ---------------------------------------------------------------------------
@@ -124,6 +149,16 @@ CHART_TYPES = [
     "box", "violin", "kde", "step", "heatmap", "hexbin", "points",
 ]
 ANNOTATION_TYPES = ["text", "hline", "vline", "band", "arrow"]
+
+# Curated color palette for dark theme - vivid but not harsh
+CHART_PALETTE = [
+    "#818cf8", "#4ade80", "#f59e0b", "#f87171", "#38bdf8",
+    "#c084fc", "#fb923c", "#2dd4bf", "#e879f9", "#a3e635",
+]
+
+# Data limits
+MAX_CHART_ROWS = 10000
+MAX_TABLE_ROWS = 200
 
 
 # ---------------------------------------------------------------------------
@@ -172,11 +207,26 @@ def _build_bokeh_figure(kind: str, df: pd.DataFrame, x: str, y: str,
     if color and color not in df.columns:
         raise ValueError(f"Color column '{color}' not found. Available: {list(df.columns)}")
 
+    # Downsample large datasets for rendering performance
+    if len(df) > MAX_CHART_ROWS and kind not in ("pie", "heatmap"):
+        df = df.sample(n=MAX_CHART_ROWS, random_state=42).sort_index()
+
     if kind == "pie":
         fig = _build_pie_chart(df, x, y, title, theme)
     else:
         fig = _build_hvplot_chart(kind, df, x, y, title, color)
         _apply_theme(fig, theme)
+
+    # Responsive sizing - fill container width
+    fig.sizing_mode = "stretch_width"
+
+    # Format numeric y-axis with thousands separators
+    for axis in fig.yaxis:
+        if hasattr(axis, "formatter"):
+            try:
+                axis.formatter = NumeralTickFormatter(format="0,0.[00]")
+            except Exception:
+                pass
 
     fig.add_tools(TapTool())
     _add_click_callbacks(fig, x, y)
@@ -187,7 +237,7 @@ def _build_bokeh_figure(kind: str, df: pd.DataFrame, x: str, y: str,
 def _build_hvplot_chart(kind: str, df: pd.DataFrame, x: str, y: str,
                         title: str, color: str | None = None):
     """Create a chart with hvPlot and convert to Bokeh figure."""
-    base = {"title": title, "width": 600, "height": 350}
+    base = {"title": title, "height": 350, "responsive": True}
 
     # Standard x/y charts
     simple_methods = {
@@ -198,34 +248,46 @@ def _build_hvplot_chart(kind: str, df: pd.DataFrame, x: str, y: str,
         "step": df.hvplot.step,
     }
 
+    has_grouping = color and color in df.columns
+
     if kind in simple_methods:
         kwargs = {**base, "x": x, "y": y}
-        if color and color in df.columns:
+        if has_grouping:
             kwargs["by"] = color
+        else:
+            kwargs["color"] = CHART_PALETTE[0]
+        # Add hover with all columns for rich tooltips
+        kwargs["hover_cols"] = "all"
         plot = simple_methods[kind](**kwargs)
 
     elif kind == "histogram":
         kwargs = {**base, "y": y}
-        if color and color in df.columns:
+        if has_grouping:
             kwargs["by"] = color
+        else:
+            kwargs["color"] = CHART_PALETTE[0]
         plot = df.hvplot.hist(**kwargs)
 
     elif kind == "box":
         kwargs = {**base, "y": y}
         if x and x in df.columns and not pd.api.types.is_numeric_dtype(df[x]):
             kwargs["by"] = x
+        kwargs["color"] = CHART_PALETTE[0]
         plot = df.hvplot.box(**kwargs)
 
     elif kind == "violin":
         kwargs = {**base, "y": y}
         if x and x in df.columns and not pd.api.types.is_numeric_dtype(df[x]):
             kwargs["by"] = x
+        kwargs["color"] = CHART_PALETTE[0]
         plot = df.hvplot.violin(**kwargs)
 
     elif kind == "kde":
         kwargs = {**base, "y": y}
-        if color and color in df.columns:
+        if has_grouping:
             kwargs["by"] = color
+        else:
+            kwargs["color"] = CHART_PALETTE[0]
         plot = df.hvplot.kde(**kwargs)
 
     elif kind == "heatmap":
@@ -243,10 +305,12 @@ def _build_hvplot_chart(kind: str, df: pd.DataFrame, x: str, y: str,
         kwargs["height"] = 400
         if color and color in df.columns:
             kwargs["c"] = color
+        else:
+            kwargs["color"] = CHART_PALETTE[0]
+        kwargs["hover_cols"] = "all"
         try:
             plot = df.hvplot.points(**kwargs)
         except Exception:
-            # Fallback without geo if geoviews not installed
             kwargs.pop("geo", None)
             kwargs.pop("tiles", None)
             plot = df.hvplot.scatter(**kwargs)
@@ -254,7 +318,20 @@ def _build_hvplot_chart(kind: str, df: pd.DataFrame, x: str, y: str,
     else:
         raise ValueError(f"Unsupported chart type: {kind}")
 
-    return hv.render(plot, backend="bokeh")
+    fig = hv.render(plot, backend="bokeh")
+
+    # Enhance hover tooltips with number formatting
+    for tool in fig.tools:
+        if isinstance(tool, HoverTool) and tool.tooltips:
+            formatted = []
+            for label, field in tool.tooltips:
+                if field.startswith("@") and pd.api.types.is_numeric_dtype(df.get(label, pd.Series(dtype="object"))):
+                    formatted.append((label, f"{field}{{0,0.[00]}}"))
+                else:
+                    formatted.append((label, field))
+            tool.tooltips = formatted
+
+    return fig
 
 
 def _build_pie_chart(df: pd.DataFrame, names_col: str, values_col: str,
@@ -262,12 +339,10 @@ def _build_pie_chart(df: pd.DataFrame, names_col: str, values_col: str,
     """Build a pie chart using Bokeh directly (hvPlot doesn't support pie)."""
     data = df.groupby(names_col)[values_col].sum().reset_index()
     data["angle"] = data[values_col] / data[values_col].sum() * 2 * math.pi
+    data["pct"] = (data[values_col] / data[values_col].sum() * 100).round(1)
 
     n = len(data)
-    if n <= 2:
-        colors = ["#6366f1", "#f59e0b"][:n]
-    else:
-        colors = list(Category10[min(n, 10)][:n])
+    colors = CHART_PALETTE[:n] if n <= len(CHART_PALETTE) else list(Category10[min(n, 10)][:n])
     data["color"] = colors
 
     source = ColumnDataSource(data)
@@ -276,9 +351,8 @@ def _build_pie_chart(df: pd.DataFrame, names_col: str, values_col: str,
         title=title,
         toolbar_location=None,
         tools="hover",
-        tooltips=f"@{names_col}: @{values_col}",
+        tooltips=f"@{names_col}: @{values_col}{{0,0}} (@pct%)",
         x_range=(-0.5, 1.0),
-        width=500,
         height=350,
     )
 
@@ -286,7 +360,7 @@ def _build_pie_chart(df: pd.DataFrame, names_col: str, values_col: str,
         x=0, y=1, radius=0.4,
         start_angle=cumsum("angle", include_zero=True),
         end_angle=cumsum("angle"),
-        line_color="white",
+        line_color="white", line_width=2,
         fill_color="color",
         legend_field=names_col,
         source=source,
@@ -294,8 +368,14 @@ def _build_pie_chart(df: pd.DataFrame, names_col: str, values_col: str,
 
     fig.axis.visible = False
     fig.grid.grid_line_color = None
+    fig.background_fill_alpha = 0
+    fig.border_fill_alpha = 0
+    fig.outline_line_alpha = 0
 
     tc = THEME_COLORS.get(theme, THEME_COLORS["dark"])
+    if fig.title:
+        fig.title.text_color = tc["title"]
+        fig.title.text_font_size = "14px"
     if fig.legend:
         fig.legend.label_text_color = tc["legend_text"]
         fig.legend.background_fill_alpha = 0
@@ -434,6 +514,22 @@ def _add_annotation_to_figure(fig, annotation_type: str, config: dict):
         fig.add_layout(arrow)
 
 
+def _apply_theme_to_layout(model, theme: str = "dark"):
+    """Apply theme to a Bokeh model, recursing into layout children."""
+    if hasattr(model, "background_fill_alpha"):
+        _apply_theme(model, theme)
+        model.sizing_mode = "stretch_width"
+    for attr in ("children",):
+        children = getattr(model, attr, None)
+        if children:
+            for child in children:
+                if isinstance(child, (list, tuple)):
+                    for c in child:
+                        _apply_theme_to_layout(c, theme)
+                else:
+                    _apply_theme_to_layout(child, theme)
+
+
 def _rebuild_figure_with_annotations(viz: dict, target_id: str = "chart-container"):
     """Rebuild a Bokeh figure from viz store data, including all stored annotations."""
     df = pd.DataFrame(viz["data"])
@@ -445,6 +541,7 @@ def _rebuild_figure_with_annotations(viz: dict, target_id: str = "chart-containe
         fig = _build_hvplot_chart(viz["kind"], df, viz["x"], viz["y"], viz["title"], viz.get("color"))
         _apply_theme(fig, theme)
 
+    fig.sizing_mode = "stretch_width"
     fig.add_tools(TapTool())
     _add_click_callbacks(fig, viz["x"], viz["y"])
 
@@ -642,6 +739,7 @@ def create_viz(
     """
     try:
         df = pd.DataFrame(data)
+        total_rows = len(df)
         spec = _build_bokeh_figure(kind, df, x, y, title, color)
 
         viz_id = str(uuid.uuid4())[:8]
@@ -657,7 +755,12 @@ def create_viz(
             "annotations": [],
         }
 
-        return json.dumps({"action": "create", "id": viz_id, "figure": spec})
+        result = {"action": "create", "id": viz_id, "figure": spec}
+        if total_rows > MAX_CHART_ROWS:
+            result["sampled"] = True
+            result["total_rows"] = total_rows
+            result["shown_rows"] = MAX_CHART_ROWS
+        return json.dumps(result)
     except Exception as e:
         return json.dumps({"action": "error", "message": str(e)})
 
@@ -868,16 +971,24 @@ def create_dashboard(
             "is_dashboard": True,
         }
 
-        return json.dumps({
+        total_rows = len(df)
+        table_rows = df.head(MAX_TABLE_ROWS).values.tolist()
+
+        result = {
             "action": "dashboard",
             "id": viz_id,
             "title": title,
             "figure": spec,
-            "table": {"columns": list(df.columns), "rows": df.head(50).values.tolist()},
+            "table": {"columns": list(df.columns), "rows": table_rows, "total": total_rows},
             "stats": stats,
             "y_column": y,
             "widget_config": widget_config,
-        })
+        }
+        if total_rows > MAX_CHART_ROWS:
+            result["sampled"] = True
+            result["total_rows"] = total_rows
+            result["shown_rows"] = MAX_CHART_ROWS
+        return json.dumps(result)
     except Exception as e:
         return json.dumps({"action": "error", "message": str(e)})
 
@@ -983,7 +1094,7 @@ def apply_filter(
             "id": viz_id,
             "empty": False,
             "figure": spec,
-            "table": {"columns": list(df.columns), "rows": df.head(50).values.tolist()},
+            "table": {"columns": list(df.columns), "rows": df.head(MAX_TABLE_ROWS).values.tolist(), "total": len(df)},
             "stats": stats,
             "filtered_rows": len(df),
         })
@@ -1043,22 +1154,10 @@ def create_multi_chart(
             return json.dumps({"action": "error", "message": "Provide 1-4 chart configurations"})
 
         df = pd.DataFrame(data)
+        if len(df) > MAX_CHART_ROWS:
+            df = df.sample(n=MAX_CHART_ROWS, random_state=42).sort_index()
+
         viz_id = str(uuid.uuid4())[:8]
-        figures = []
-
-        for i, chart_cfg in enumerate(charts):
-            kind = chart_cfg.get("kind", "bar")
-            x = chart_cfg.get("x")
-            y = chart_cfg.get("y")
-            chart_title = chart_cfg.get("title", f"Chart {i + 1}")
-            color = chart_cfg.get("color")
-            target_id = f"chart-{i}"
-
-            try:
-                spec = _build_bokeh_figure(kind, df, x, y, chart_title, color, target_id)
-                figures.append({"index": i, "target_id": target_id, "figure": spec, "title": chart_title})
-            except Exception as e:
-                figures.append({"index": i, "target_id": target_id, "error": str(e), "title": chart_title})
 
         _viz_store[viz_id] = {
             "id": viz_id,
@@ -1069,13 +1168,87 @@ def create_multi_chart(
             "theme": "dark",
         }
 
-        return json.dumps({
-            "action": "multi_chart",
-            "id": viz_id,
-            "title": title,
-            "figures": figures,
-            "chart_count": len(figures),
-        })
+        # Try linked brushing via HoloViews Layout
+        try:
+            ls = hv.link_selections.instance()
+            plots = []
+
+            for i, chart_cfg in enumerate(charts):
+                kind = chart_cfg.get("kind", "bar")
+                cx = chart_cfg.get("x")
+                cy = chart_cfg.get("y")
+                chart_title = chart_cfg.get("title", f"Chart {i + 1}")
+                ccolor = chart_cfg.get("color")
+                has_group = ccolor and ccolor in df.columns
+
+                base = {"title": chart_title, "height": 300, "responsive": True}
+                simple = {"bar", "line", "scatter", "area", "step"}
+                pal_color = CHART_PALETTE[i % len(CHART_PALETTE)]
+
+                if kind in simple:
+                    kw = {**base, "x": cx, "y": cy, "hover_cols": "all"}
+                    if has_group:
+                        kw["by"] = ccolor
+                    else:
+                        kw["color"] = pal_color
+                    plot = getattr(df.hvplot, kind)(**kw)
+                elif kind == "histogram":
+                    kw = {**base, "y": cy, "color": pal_color}
+                    plot = df.hvplot.hist(**kw)
+                elif kind in ("box", "violin"):
+                    kw = {**base, "y": cy, "color": pal_color}
+                    if cx and cx in df.columns and not pd.api.types.is_numeric_dtype(df[cx]):
+                        kw["by"] = cx
+                    plot = getattr(df.hvplot, kind)(**kw)
+                elif kind == "kde":
+                    kw = {**base, "y": cy, "color": pal_color}
+                    plot = df.hvplot.kde(**kw)
+                else:
+                    kw = {**base, "x": cx, "y": cy, "color": pal_color, "hover_cols": "all"}
+                    plot = df.hvplot.scatter(**kw)
+
+                plots.append(ls(plot))
+
+            layout = hv.Layout(plots).cols(min(len(charts), 2))
+            bokeh_layout = hv.render(layout, backend="bokeh")
+            _apply_theme_to_layout(bokeh_layout, "dark")
+            bokeh_layout.sizing_mode = "stretch_width"
+            spec = json_item(bokeh_layout, "chart-grid")
+
+            return json.dumps({
+                "action": "multi_chart",
+                "id": viz_id,
+                "title": title,
+                "figure": spec,
+                "chart_count": len(charts),
+                "linked": True,
+            })
+
+        except Exception:
+            # Fallback: individual charts without linked brushing
+            figures = []
+            for i, chart_cfg in enumerate(charts):
+                kind = chart_cfg.get("kind", "bar")
+                cx = chart_cfg.get("x")
+                cy = chart_cfg.get("y")
+                chart_title = chart_cfg.get("title", f"Chart {i + 1}")
+                ccolor = chart_cfg.get("color")
+                target_id = f"chart-{i}"
+
+                try:
+                    spec = _build_bokeh_figure(kind, df, cx, cy, chart_title, ccolor, target_id)
+                    figures.append({"index": i, "target_id": target_id, "figure": spec, "title": chart_title})
+                except Exception as e:
+                    figures.append({"index": i, "target_id": target_id, "error": str(e), "title": chart_title})
+
+            return json.dumps({
+                "action": "multi_chart",
+                "id": viz_id,
+                "title": title,
+                "figures": figures,
+                "chart_count": len(figures),
+                "linked": False,
+            })
     except Exception as e:
         return json.dumps({"action": "error", "message": str(e)})
 
@@ -1289,8 +1462,6 @@ def viz_view() -> str:
         "      color: #93c5fd; white-space: pre-line;\n"
         "    }\n"
         "    #viz-id { font-size: 11px; color: var(--text-muted); text-align: right; padding: 2px 0; }\n"
-        "    .loading { display: flex; align-items: center; justify-content: center; height: 200px; color: var(--text-muted); }\n"
-        "    .error-msg { color: var(--error); padding: 20px; text-align: center; }\n"
         "    .toolbar { display: flex; gap: 6px; justify-content: flex-end; padding: 4px 0; }\n"
         "    .toolbar-btn {\n"
         "      padding: 3px 10px; border-radius: 4px; border: 1px solid var(--btn-border);\n"
@@ -1319,7 +1490,8 @@ def viz_view() -> str:
         '    <button class="toolbar-btn" onclick="exportCSV()">Export CSV</button>\n'
         '    <button class="toolbar-btn" id="panel-btn" onclick="openInPanel()">Open in Panel</button>\n'
         "  </div>\n"
-        '  <div id="chart-container"><div class="loading">Waiting for visualization data...</div></div>\n'
+        '  <div id="chart-container"><div class="loading"><div class="spinner"></div><span>Preparing visualization...</span></div></div>\n'
+        '  <div id="sample-notice" style="display:none;"></div>\n'
         '  <div id="insight-bar"></div>\n'
         '  <div id="viz-id"></div>\n'
         '  <div id="status">panel-viz-mcp ready (HoloViz + BokehJS)</div>\n'
@@ -1450,18 +1622,22 @@ def viz_view() -> str:
         "        currentVizId = result.id;\n"
         '        document.getElementById("toolbar").style.display = "flex";\n'
         '        const container = document.getElementById("chart-container");\n'
-        '        container.innerHTML = "";\n'
+        '        container.innerHTML = \'<div class="loading"><div class="spinner"></div><span>Rendering chart...</span></div>\';\n'
         "        try {\n"
+        '          container.innerHTML = "";\n'
         "          await Bokeh.embed.embed_item(result.figure);\n"
-        '          document.getElementById("status").textContent =\n'
-        '            result.action === "create" ? "Visualization created" : "Visualization updated";\n'
-        "          if (result.info) {\n"
-        '            document.getElementById("status").textContent +=\n'
-        '              " | " + result.info.rows + " rows from " + result.info.file;\n'
-        "          }\n"
+        '          let statusText = result.action === "create" ? "Visualization created" : "Visualization updated";\n'
+        "          if (result.info) { statusText += ' | ' + result.info.rows + ' rows from ' + result.info.file; }\n"
+        '          document.getElementById("status").textContent = statusText;\n'
         "        } catch (err) {\n"
-        '          container.innerHTML = \'<div class="error-msg">Chart render error: \' + err.message + \'</div>\';\n'
+        '          container.innerHTML = \'<div class="error-box"><div class="error-title">Render Error</div>\' + err.message + \'<div class="error-hint">Try a different chart type or check your data columns</div></div>\';\n'
         "        }\n"
+        '        const notice = document.getElementById("sample-notice");\n'
+        "        if (result.sampled) {\n"
+        '          notice.className = "sample-notice";\n'
+        '          notice.textContent = "Showing " + result.shown_rows.toLocaleString() + " of " + result.total_rows.toLocaleString() + " data points (sampled for performance)";\n'
+        '          notice.style.display = "block";\n'
+        '        } else { notice.style.display = "none"; }\n'
         '        document.getElementById("viz-id").textContent = "ID: " + result.id;\n'
         '        document.getElementById("insight-bar").style.display = "none";\n'
         "      }\n"
@@ -1470,7 +1646,7 @@ def viz_view() -> str:
         '        const container = document.getElementById("chart-container");\n'
         '        container.innerHTML = "";\n'
         "        try { await Bokeh.embed.embed_item(result.figure); } catch (err) {\n"
-        '          container.innerHTML = \'<div class="error-msg">Theme error: \' + err.message + \'</div>\';\n'
+        '          container.innerHTML = \'<div class="error-box"><div class="error-title">Theme Error</div>\' + err.message + \'</div>\';\n'
         "        }\n"
         "      }\n"
         "\n"
@@ -1503,7 +1679,7 @@ def viz_view() -> str:
         "\n"
         '      if (result.action === "error") {\n'
         '        document.getElementById("chart-container").innerHTML =\n'
-        '          \'<div class="error-msg">\' + result.message + \'</div>\';\n'
+        '          \'<div class="error-box"><div class="error-title">Error</div>\' + result.message + \'<div class="error-hint">Check your data format and column names</div></div>\';\n'
         '        document.getElementById("status").textContent = "Error";\n'
         "      }\n"
         "    };\n"
@@ -1586,14 +1762,15 @@ def dashboard_view() -> str:
         "    .stat-item { text-align: center; padding: 8px; background: var(--bg-surface); border-radius: 6px; }\n"
         "    .stat-value { font-size: 20px; font-weight: 700; color: var(--stat-value); }\n"
         "    .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }\n"
-        "    .table-wrap { max-height: 200px; overflow-y: auto; }\n"
+        "    .table-wrap { max-height: 250px; overflow-y: auto; }\n"
+        "    .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }\n"
+        "    .table-count { font-size: 11px; color: var(--text-muted); }\n"
         "    table { width: 100%; border-collapse: collapse; font-size: 12px; }\n"
-        "    th { position: sticky; top: 0; background: var(--table-header-bg); padding: 6px 8px; text-align: left; color: var(--text-secondary); border-bottom: 1px solid var(--border); }\n"
+        "    th { position: sticky; top: 0; background: var(--table-header-bg); padding: 6px 8px; text-align: left; color: var(--text-secondary); border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }\n"
+        "    th:hover { color: var(--accent); }\n"
         "    td { padding: 5px 8px; border-bottom: 1px solid var(--border); }\n"
         "    tr:hover td { background: var(--accent-bg); }\n"
         "    #status { font-size: 11px; color: var(--text-muted); text-align: center; padding: 4px; }\n"
-        "    .loading { display: flex; align-items: center; justify-content: center; height: 200px; color: var(--text-muted); }\n"
-        "    .error-msg { color: var(--error); padding: 20px; text-align: center; }\n"
         "  </style>\n"
         '</head>\n<body class="theme-dark">\n'
         '  <div class="dash-header">\n'
@@ -1608,15 +1785,15 @@ def dashboard_view() -> str:
         '      <div class="grid">\n'
         '        <div class="card" style="grid-column: 1 / -1;">\n'
         '          <div class="card-title">Chart</div>\n'
-        '          <div id="chart"><div class="loading">Waiting...</div></div>\n'
+        '          <div id="chart"><div class="loading"><div class="spinner"></div><span>Preparing chart...</span></div></div>\n'
         "        </div>\n"
         '        <div class="card">\n'
         '          <div class="card-title">Statistics</div>\n'
-        '          <div class="stats-grid" id="stats"><div class="loading">Waiting...</div></div>\n'
+        '          <div class="stats-grid" id="stats"><div class="loading"><div class="spinner"></div></div></div>\n'
         "        </div>\n"
         '        <div class="card">\n'
         '          <div class="card-title">Data Table</div>\n'
-        '          <div class="table-wrap" id="table"><div class="loading">Waiting...</div></div>\n'
+        '          <div class="table-wrap" id="table"><div class="loading"><div class="spinner"></div></div></div>\n'
         "        </div>\n"
         "      </div>\n"
         "    </div>\n"
@@ -1731,6 +1908,7 @@ def dashboard_view() -> str:
         "      }\n"
         '      const statusEl = document.getElementById("filter-status");\n'
         '      if (statusEl) statusEl.textContent = "Filtering...";\n'
+        '      document.getElementById("chart").innerHTML = \'<div class="loading"><div class="spinner"></div><span>Applying filters...</span></div>\';\n'
         "      try {\n"
         "        const response = await app.callServerTool({\n"
         '          name: "apply_filter",\n'
@@ -1741,23 +1919,24 @@ def dashboard_view() -> str:
         "          const r = JSON.parse(t.text);\n"
         '          if (r.action === "filter_result") {\n'
         "            if (r.empty) {\n"
-        '              document.getElementById("chart").innerHTML = \'<div class="error-msg">No data matches filters</div>\';\n'
+        '              document.getElementById("chart").innerHTML = \'<div class="error-box"><div class="error-title">No Results</div>No data matches the current filters<div class="error-hint">Try adjusting or resetting filters</div></div>\';\n'
         '              if (statusEl) statusEl.textContent = "0 rows match";\n'
         "            } else {\n"
         '              document.getElementById("chart").innerHTML = "";\n'
         "              try { await Bokeh.embed.embed_item(r.figure); } catch (embedErr) {\n"
-        '                document.getElementById("chart").innerHTML = \'<div class="error-msg">\' + embedErr.message + \'</div>\';\n'
+        '                document.getElementById("chart").innerHTML = \'<div class="error-box"><div class="error-title">Render Error</div>\' + embedErr.message + \'</div>\';\n'
         "              }\n"
         "              renderStats(r.stats);\n"
         "              renderTable(r.table);\n"
-        '              if (statusEl) statusEl.textContent = r.filtered_rows + " rows";\n'
+        '              if (statusEl) statusEl.textContent = r.filtered_rows.toLocaleString() + " rows";\n'
         "            }\n"
         '          } else if (r.action === "error") {\n'
-        '            document.getElementById("chart").innerHTML = \'<div class="error-msg">\' + r.message + \'</div>\';\n'
+        '            document.getElementById("chart").innerHTML = \'<div class="error-box"><div class="error-title">Filter Error</div>\' + r.message + \'</div>\';\n'
         '            if (statusEl) statusEl.textContent = "Error";\n'
         "          }\n"
         "        }\n"
         "      } catch (err) {\n"
+        '        document.getElementById("chart").innerHTML = \'<div class="error-box"><div class="error-title">Connection Error</div>Failed to apply filters</div>\';\n'
         '        if (statusEl) statusEl.textContent = "Filter error";\n'
         "      }\n"
         "    }\n"
@@ -1781,15 +1960,42 @@ def dashboard_view() -> str:
         "      ).join('');\n"
         "    }\n"
         "\n"
+        "    let currentSortCol = -1, currentSortAsc = true;\n"
+        "    let currentTableData = null;\n"
+        "\n"
         "    function renderTable(table) {\n"
+        "      currentTableData = table;\n"
         '      const tableEl = document.getElementById("table");\n'
-        '      let html = "<table><thead><tr>" +\n'
-        '        table.columns.map(c => "<th>"+c+"</th>").join("") +\n'
+        "      const total = table.total || table.rows.length;\n"
+        "      const showing = table.rows.length;\n"
+        '      let html = \'<div class="table-header"><span class="table-count">\' +\n'
+        "        (total > showing ? 'Showing ' + showing + ' of ' + total.toLocaleString() + ' rows' : showing + ' rows') +\n"
+        "        '</span></div>';\n"
+        '      html += "<table><thead><tr>" +\n'
+        '        table.columns.map((c, i) => \'<th onclick="sortTable(\'+i+\')">\'+c+\' <span style="opacity:0.4">&#8597;</span></th>\').join("") +\n'
         '        "</tr></thead><tbody>" +\n'
-        '        table.rows.map(row => "<tr>" + row.map(v => "<td>"+v+"</td>").join("") + "</tr>").join("") +\n'
+        "        table.rows.map(row => '<tr>' + row.map(v => {\n"
+        "          const n = Number(v);\n"
+        "          return '<td' + ((!isNaN(n) && v !== '' && v !== null) ? ' style=\"text-align:right\"' : '') + '>' +\n"
+        "            ((!isNaN(n) && v !== '' && v !== null) ? n.toLocaleString() : (v === null ? '' : v)) + '</td>';\n"
+        "        }).join('') + '</tr>').join('') +\n"
         '        "</tbody></table>";\n'
         "      tableEl.innerHTML = html;\n"
         "    }\n"
+        "\n"
+        "    window.sortTable = (colIdx) => {\n"
+        "      if (!currentTableData) return;\n"
+        "      if (currentSortCol === colIdx) { currentSortAsc = !currentSortAsc; }\n"
+        "      else { currentSortCol = colIdx; currentSortAsc = true; }\n"
+        "      const sorted = [...currentTableData.rows].sort((a, b) => {\n"
+        "        let va = a[colIdx], vb = b[colIdx];\n"
+        "        const na = Number(va), nb = Number(vb);\n"
+        "        if (!isNaN(na) && !isNaN(nb)) return currentSortAsc ? na - nb : nb - na;\n"
+        "        va = String(va || ''); vb = String(vb || '');\n"
+        "        return currentSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);\n"
+        "      });\n"
+        "      renderTable({...currentTableData, rows: sorted});\n"
+        "    };\n"
         "\n"
         "    app.ontoolresult = async ({ content }) => {\n"
         '      const text = content?.find(c => c.type === "text");\n'
@@ -1802,33 +2008,34 @@ def dashboard_view() -> str:
         '        document.getElementById("dash-title").textContent = r.title;\n'
         '        document.getElementById("chart").innerHTML = "";\n'
         "        try { await Bokeh.embed.embed_item(r.figure); } catch (err) {\n"
-        '          document.getElementById("chart").innerHTML = \'<div class="error-msg">Chart error: \' + err.message + \'</div>\';\n'
+        '          document.getElementById("chart").innerHTML = \'<div class="error-box"><div class="error-title">Chart Error</div>\' + err.message + \'</div>\';\n'
         "        }\n"
         "        renderStats(r.stats);\n"
         "        renderTable(r.table);\n"
         "        if (r.widget_config) buildFilterWidgets(r.widget_config);\n"
-        '        document.getElementById("status").textContent = "Dashboard loaded | ID: " + r.id + " | " + r.table.rows.length + " rows";\n'
+        "        let statusText = 'Dashboard loaded | ID: ' + r.id;\n"
+        "        if (r.sampled) { statusText += ' | Showing ' + r.shown_rows.toLocaleString() + ' of ' + r.total_rows.toLocaleString() + ' points (sampled)'; }\n"
+        '        document.getElementById("status").textContent = statusText;\n'
         "      }\n"
         "\n"
         '      if (r.action === "filter_result") {\n'
+        '        const statusEl = document.getElementById("filter-status");\n'
         "        if (r.empty) {\n"
-        '          document.getElementById("chart").innerHTML = \'<div class="error-msg">No data matches filters</div>\';\n'
-        '          const statusEl = document.getElementById("filter-status");\n'
+        '          document.getElementById("chart").innerHTML = \'<div class="error-box"><div class="error-title">No Results</div>No data matches filters</div>\';\n'
         '          if (statusEl) statusEl.textContent = "0 rows match";\n'
         "        } else {\n"
         '          document.getElementById("chart").innerHTML = "";\n'
         "          try { await Bokeh.embed.embed_item(r.figure); } catch (err) {\n"
-        '            document.getElementById("chart").innerHTML = \'<div class="error-msg">\' + err.message + \'</div>\';\n'
+        '            document.getElementById("chart").innerHTML = \'<div class="error-box"><div class="error-title">Render Error</div>\' + err.message + \'</div>\';\n'
         "          }\n"
         "          renderStats(r.stats);\n"
         "          renderTable(r.table);\n"
-        '          const statusEl = document.getElementById("filter-status");\n'
-        '          if (statusEl) statusEl.textContent = r.filtered_rows + " rows";\n'
+        '          if (statusEl) statusEl.textContent = r.filtered_rows.toLocaleString() + " rows";\n'
         "        }\n"
         "      }\n"
         "\n"
         '      if (r.action === "error") {\n'
-        '        document.getElementById("chart").innerHTML = \'<div class="error-msg">\' + r.message + \'</div>\';\n'
+        '        document.getElementById("chart").innerHTML = \'<div class="error-box"><div class="error-title">Error</div>\' + r.message + \'</div>\';\n'
         "      }\n"
         "    };\n"
         "\n"
@@ -1912,7 +2119,7 @@ def stream_view() -> str:
         '      <div class="live-badge"><div class="live-dot"></div>LIVE</div>\n'
         "    </div>\n"
         "  </div>\n"
-        '  <div id="chart"><div class="loading">Waiting for stream config...</div></div>\n'
+        '  <div id="chart"><div class="loading"><div class="spinner"></div><span>Waiting for stream config...</span></div></div>\n'
         '  <div class="metrics">\n'
         '    <div class="metric"><div class="metric-value" id="current">--</div><div class="metric-label">Current</div></div>\n'
         '    <div class="metric"><div class="metric-value" id="change">--</div><div class="metric-label">Change</div></div>\n'
@@ -2022,11 +2229,12 @@ def stream_view() -> str:
         "        try {\n"
         "          bokehSource = new Bokeh.ColumnDataSource({ data: { x: [0], y: [config.initial_value] } });\n"
         "          const fig = Bokeh.Plotting.figure({\n"
-        "            width: 600, height: 280, toolbar_location: null,\n"
+        "            height: 280, toolbar_location: null,\n"
         "            background_fill_alpha: 0, border_fill_alpha: 0, outline_line_alpha: 0,\n"
+        "            sizing_mode: 'stretch_width',\n"
         "          });\n"
-        "          fig.line({ field: 'x' }, { field: 'y' }, { source: bokehSource, line_width: 3, line_color: '#4ade80' });\n"
-        "          fig.scatter({ field: 'x' }, { field: 'y' }, { source: bokehSource, size: 5, fill_color: '#4ade80', line_color: '#4ade80' });\n"
+        "          fig.line({ field: 'x' }, { field: 'y' }, { source: bokehSource, line_width: 3, line_color: '#818cf8' });\n"
+        "          fig.scatter({ field: 'x' }, { field: 'y' }, { source: bokehSource, size: 5, fill_color: '#818cf8', line_color: '#818cf8' });\n"
         "          for (const ax of [...fig.xaxis, ...fig.yaxis]) {\n"
         "            ax.axis_label_text_color = '#94a3b8'; ax.major_label_text_color = '#94a3b8';\n"
         "            ax.major_tick_line_color = '#475569'; ax.axis_line_color = '#475569';\n"
@@ -2036,7 +2244,7 @@ def stream_view() -> str:
         '          await Bokeh.Plotting.show(fig, "#chart");\n'
         "          startStream();\n"
         "        } catch (err) {\n"
-        '          document.getElementById("chart").innerHTML = \'<div class="error-msg">Stream error: \' + err.message + \'</div>\';\n'
+        '          document.getElementById("chart").innerHTML = \'<div class="error-box"><div class="error-title">Stream Error</div>\' + err.message + \'</div>\';\n'
         "        }\n"
         "      }\n"
         "    };\n"
@@ -2098,7 +2306,7 @@ def multi_view() -> str:
         '    <div class="multi-title" id="multi-title">Multi-Chart Dashboard</div>\n'
         '    <button class="toolbar-btn" id="theme-btn" onclick="toggleTheme()">Light Mode</button>\n'
         "  </div>\n"
-        '  <div class="chart-grid" id="chart-grid"><div class="loading">Waiting for chart data...</div></div>\n'
+        '  <div class="chart-grid" id="chart-grid"><div class="loading" style="grid-column:1/-1"><div class="spinner"></div><span>Waiting for chart data...</span></div></div>\n'
         '  <div id="status">panel-viz-mcp multi-chart ready</div>\n'
         "\n"
         '  <script type="module">\n'
@@ -2121,28 +2329,39 @@ def multi_view() -> str:
         '        document.getElementById("multi-title").textContent = r.title;\n'
         '        const grid = document.getElementById("chart-grid");\n'
         '        grid.innerHTML = "";\n'
-        '        grid.className = "chart-grid count-" + r.chart_count;\n'
-        "        for (const fig of r.figures) {\n"
-        '          const cell = document.createElement("div");\n'
-        '          cell.className = "chart-cell";\n'
-        "          cell.innerHTML = '<div class=\"chart-cell-title\">' + fig.title + '</div>' +\n"
-        "            '<div id=\"' + fig.target_id + '\"></div>';\n"
-        "          grid.appendChild(cell);\n"
-        "        }\n"
-        "        for (const fig of r.figures) {\n"
-        "          if (fig.figure) {\n"
-        "            try { await Bokeh.embed.embed_item(fig.figure); } catch (err) {\n"
-        "              document.getElementById(fig.target_id).innerHTML = '<div class=\"error-msg\">' + err.message + '</div>';\n"
+        "\n"
+        "        if (r.figure) {\n"
+        "          // Linked brushing - single layout figure\n"
+        '          grid.className = "chart-grid count-1";\n'
+        "          try { await Bokeh.embed.embed_item(r.figure); } catch (err) {\n"
+        '            grid.innerHTML = \'<div class="error-box" style="grid-column:1/-1"><div class="error-title">Render Error</div>\' + err.message + \'</div>\';\n'
+        "          }\n"
+        "        } else if (r.figures) {\n"
+        "          // Fallback - individual charts\n"
+        '          grid.className = "chart-grid count-" + r.chart_count;\n'
+        "          for (const fig of r.figures) {\n"
+        '            const cell = document.createElement("div");\n'
+        '            cell.className = "chart-cell";\n'
+        "            cell.innerHTML = '<div class=\"chart-cell-title\">' + fig.title + '</div>' +\n"
+        "              '<div id=\"' + fig.target_id + '\"></div>';\n"
+        "            grid.appendChild(cell);\n"
+        "          }\n"
+        "          for (const fig of r.figures) {\n"
+        "            if (fig.figure) {\n"
+        "              try { await Bokeh.embed.embed_item(fig.figure); } catch (err) {\n"
+        "                document.getElementById(fig.target_id).innerHTML = '<div class=\"error-box\"><div class=\"error-title\">Render Error</div>' + err.message + '</div>';\n"
+        "              }\n"
+        "            } else if (fig.error) {\n"
+        "              document.getElementById(fig.target_id).innerHTML = '<div class=\"error-box\"><div class=\"error-title\">Chart Error</div>' + fig.error + '</div>';\n"
         "            }\n"
-        "          } else if (fig.error) {\n"
-        "            document.getElementById(fig.target_id).innerHTML = '<div class=\"error-msg\">' + fig.error + '</div>';\n"
         "          }\n"
         "        }\n"
-        '        document.getElementById("status").textContent = "Multi-chart loaded | ID: " + r.id + " | " + r.chart_count + " charts";\n'
+        '        const linkedTag = r.linked ? " (linked)" : "";\n'
+        '        document.getElementById("status").textContent = "Multi-chart loaded | " + r.chart_count + " charts" + linkedTag;\n'
         "      }\n"
         "\n"
         '      if (r.action === "error") {\n'
-        '        document.getElementById("chart-grid").innerHTML = \'<div class="error-msg">\' + r.message + \'</div>\';\n'
+        '        document.getElementById("chart-grid").innerHTML = \'<div class="error-box" style="grid-column:1/-1"><div class="error-title">Error</div>\' + r.message + \'</div>\';\n'
         "      }\n"
         "    };\n"
         "\n"
