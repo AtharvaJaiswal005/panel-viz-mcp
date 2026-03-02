@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Viz MCP - Demo Chat</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      background: #16213e;
+      padding: 16px 24px;
+      border-bottom: 1px solid #2a2a4a;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header .logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header .badge {
+      background: #22c55e20;
+      color: #22c55e;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    /* Chat area */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .message {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    .message.user {
+      background: #3b82f6;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .message.assistant {
+      background: #1e293b;
+      border: 1px solid #334155;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    .message .label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+
+    /* MCP App iframe container */
+    .mcp-app-container {
+      align-self: flex-start;
+      width: 90%;
+      max-width: 700px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .mcp-app-header {
+      padding: 8px 14px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      font-size: 12px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mcp-app-header .dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+    }
+    .mcp-app-iframe {
+      width: 100%;
+      height: 420px;
+      border: none;
+    }
+
+    /* Insight bar */
+    .insight-message {
+      align-self: flex-start;
+      max-width: 85%;
+      padding: 10px 14px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: 10px;
+      font-size: 13px;
+      color: #93c5fd;
+      white-space: pre-line;
+    }
+
+    /* Input area */
+    .input-area {
+      padding: 16px 24px;
+      background: #16213e;
+      border-top: 1px solid #2a2a4a;
+      display: flex;
+      gap: 12px;
+    }
+    .input-area input {
+      flex: 1;
+      padding: 12px 16px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      color: #e0e0e0;
+      font-size: 14px;
+      outline: none;
+    }
+    .input-area input:focus { border-color: #6366f1; }
+    .input-area input::placeholder { color: #64748b; }
+    .input-area button {
+      padding: 12px 20px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .input-area button:hover { background: #5558e6; }
+    .input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Quick actions */
+    .quick-actions {
+      padding: 8px 24px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .quick-btn {
+      padding: 6px 14px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .quick-btn:hover { border-color: #6366f1; color: #e0e0e0; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">P</div>
+    <h1>Panel Viz MCP</h1>
+    <span class="badge">MCP Apps Demo</span>
+  </div>
+
+  <div class="quick-actions">
+    <button class="quick-btn" onclick="sendQuick('bar')">Bar Chart</button>
+    <button class="quick-btn" onclick="sendQuick('line')">Line Chart</button>
+    <button class="quick-btn" onclick="sendQuick('scatter')">Scatter Plot</button>
+    <button class="quick-btn" onclick="sendQuick('pie')">Pie Chart</button>
+    <button class="quick-btn" onclick="sendQuick('area')">Area Chart</button>
+    <button class="quick-btn" onclick="sendQuick('update')">Update Chart</button>
+    <button class="quick-btn" onclick="sendQuick('csv')">Load CSV</button>
+  </div>
+
+  <div class="chat-area" id="chat"></div>
+
+  <div class="input-area">
+    <input type="text" id="input" placeholder="Ask for a visualization..." autofocus>
+    <button id="send-btn" onclick="handleSend()">Send</button>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:6277";
+    let sessionToken = new URLSearchParams(window.location.search).get("token") || "";
+    let currentVizId = null;
+    let appIframe = null;
+
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("input");
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleSend();
+    });
+
+    // ------- Chat UI helpers -------
+    function addMessage(text, role) {
+      const div = document.createElement("div");
+      div.className = `message ${role}`;
+      div.innerHTML = `<div class="label">${role === "user" ? "You" : "Panel Viz MCP"}</div>${text}`;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addMCPApp(figureJson, vizId) {
+      currentVizId = vizId;
+
+      const container = document.createElement("div");
+      container.className = "mcp-app-container";
+      container.innerHTML = `
+        <div class="mcp-app-header">
+          <span class="dot"></span>
+          <span>ui://panel-viz-mcp/viz.html</span>
+          <span style="margin-left:auto;">ID: ${vizId}</span>
+        </div>
+      `;
+
+      const iframe = document.createElement("iframe");
+      iframe.className = "mcp-app-iframe";
+      iframe.sandbox = "allow-scripts allow-same-origin";
+
+      // Build the HTML that goes into the iframe
+      const html = buildIframeHTML(figureJson, vizId);
+      iframe.srcdoc = html;
+      container.appendChild(iframe);
+      chat.appendChild(container);
+      chat.scrollTop = chat.scrollHeight;
+      appIframe = iframe;
+    }
+
+    function addInsight(text) {
+      const div = document.createElement("div");
+      div.className = "insight-message";
+      div.innerHTML = `<div class="label" style="margin-bottom:4px;">Click Insight</div>${text}`;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // ------- Build iframe HTML with Plotly -------
+    function buildIframeHTML(figureJson, vizId) {
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="color-scheme" content="light dark">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"><\/script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: transparent; padding: 8px; font-family: sans-serif; }
+    #chart { width: 100%; height: 360px; }
+    #info { font-size: 12px; color: #888; padding: 4px 8px; }
+  </style>
+</head>
+<body>
+  <div id="chart"></div>
+  <div id="info">Click any data point for analysis</div>
+  <script>
+    const figure = ${JSON.stringify(figureJson)};
+    const vizId = "${vizId}";
+
+    Plotly.newPlot('chart', figure.data, Object.assign({}, figure.layout, {
+      height: 350,
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+    }), {
+      responsive: true,
+      displayModeBar: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: ['lasso2d', 'select2d']
+    });
+
+    // Bidirectional: send click events to parent
+    document.getElementById('chart').on('plotly_click', function(data) {
+      if (!data.points.length) return;
+      const pt = data.points[0];
+      window.parent.postMessage({
+        type: 'mcp-click',
+        vizId: vizId,
+        pointIndex: pt.pointIndex,
+        xValue: String(pt.x || pt.label || ''),
+        yValue: Number(pt.y || pt.value || 0)
+      }, '*');
+    });
+  <\/script>
+</body>
+</html>`;
+    }
+
+    // ------- Listen for click events from iframe -------
+    window.addEventListener("message", async (event) => {
+      if (event.data?.type === "mcp-click") {
+        const { vizId, pointIndex, xValue, yValue } = event.data;
+        const result = await callTool("handle_click", {
+          viz_id: vizId,
+          point_index: pointIndex,
+          x_value: xValue,
+          y_value: yValue,
+        });
+        if (result?.action === "insight") {
+          addInsight(result.message);
+        }
+      }
+    });
+
+    // ------- MCP server communication -------
+    async function callTool(name, args) {
+      try {
+        const resp = await fetch(`${API_URL}/mcp`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionToken ? { "Authorization": `Bearer ${sessionToken}` } : {}),
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: Date.now(),
+            method: "tools/call",
+            params: { name, arguments: args },
+          }),
+        });
+        const data = await resp.json();
+        if (data.result?.content?.[0]?.text) {
+          return JSON.parse(data.result.content[0].text);
+        }
+        return null;
+      } catch (err) {
+        console.error("MCP call failed:", err);
+        addMessage("Failed to connect to MCP server. Make sure the inspector proxy is running on port 6277.", "assistant");
+        return null;
+      }
+    }
+
+    // ------- Handle commands -------
+    const SAMPLE_DATA = {
+      bar: {
+        kind: "bar",
+        title: "Sales by Region",
+        data: { region: ["East", "West", "North", "South"], sales: [45000, 32000, 21000, 38000] },
+        x: "region", y: "sales"
+      },
+      line: {
+        kind: "line",
+        title: "Monthly Revenue",
+        data: { month: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], revenue: [12000, 19000, 15000, 22000, 28000, 25000] },
+        x: "month", y: "revenue"
+      },
+      scatter: {
+        kind: "scatter",
+        title: "Height vs Weight",
+        data: { height: [160, 165, 170, 175, 180, 185, 190], weight: [55, 62, 68, 72, 78, 85, 90] },
+        x: "height", y: "weight"
+      },
+      pie: {
+        kind: "pie",
+        title: "Market Share",
+        data: { company: ["Apple", "Samsung", "Xiaomi", "Others"], share: [35, 28, 18, 19] },
+        x: "company", y: "share"
+      },
+      area: {
+        kind: "area",
+        title: "Daily Users",
+        data: { day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], users: [1200, 1800, 2100, 1900, 2500, 3000, 2800] },
+        x: "day", y: "users"
+      }
+    };
+
+    async function handleSend() {
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      addMessage(text, "user");
+      document.getElementById("send-btn").disabled = true;
+
+      // Parse intent
+      const lower = text.toLowerCase();
+      let result = null;
+
+      if (lower.includes("update") && currentVizId) {
+        let newKind = null;
+        for (const k of ["bar", "line", "scatter", "area", "pie", "histogram"]) {
+          if (lower.includes(k)) { newKind = k; break; }
+        }
+        addMessage("Updating visualization...", "assistant");
+        result = await callTool("update_viz", {
+          viz_id: currentVizId,
+          kind: newKind || "line",
+          title: text,
+        });
+      } else if (lower.includes("csv") || lower.includes("load") || lower.includes("file")) {
+        addMessage("Loading data from CSV file...", "assistant");
+        result = await callTool("load_data", {
+          file_path: "examples/sample_data.csv",
+          kind: "bar",
+          x: "region",
+          y: "sales",
+          title: "Sales Data from CSV",
+          color: "category",
+        });
+      } else {
+        // Detect chart type
+        let chartType = "bar";
+        for (const k of Object.keys(SAMPLE_DATA)) {
+          if (lower.includes(k)) { chartType = k; break; }
+        }
+        const sample = SAMPLE_DATA[chartType];
+        addMessage(`Creating ${sample.kind} chart...`, "assistant");
+        result = await callTool("create_viz", sample);
+      }
+
+      if (result && (result.action === "create" || result.action === "update")) {
+        addMCPApp(result.figure, result.id);
+        let info = `Chart ${result.action}d successfully.`;
+        if (result.info) info += ` Loaded ${result.info.rows} rows from ${result.info.file}.`;
+        addMessage(info, "assistant");
+      } else if (result?.action === "error") {
+        addMessage("Error: " + result.message, "assistant");
+      }
+
+      document.getElementById("send-btn").disabled = false;
+      input.focus();
+    }
+
+    function sendQuick(type) {
+      if (type === "update") {
+        input.value = "Update to line chart";
+      } else if (type === "csv") {
+        input.value = "Load CSV data";
+      } else {
+        input.value = `Show me a ${type} chart`;
+      }
+      handleSend();
+    }
+
+    // Welcome message
+    addMessage("Welcome! I can create interactive visualizations for you. Try clicking a quick action above or type a request.", "assistant");
+  </script>
+</body>
+</html>

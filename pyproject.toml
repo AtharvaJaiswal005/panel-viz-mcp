@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "panel-viz-mcp"
+version = "0.1.0"
+description = "Interactive Panel visualizations inside AI chats via MCP Apps Standard"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Atharva Jaiswal", email = "atharvajaiswal005@gmail.com" },
+]
+keywords = ["panel", "mcp", "visualization", "ai", "holoviz", "mcp-apps"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = [
+    "fastmcp>=3.0,<4",
+    "panel>=1.4.0",
+    "holoviews>=1.18.0",
+    "hvplot>=0.10.0",
+    "bokeh>=3.4.0",
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+]
+
+[project.optional-dependencies]
+geo = [
+    "geoviews>=1.10.0",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+panel-viz-mcp = "panel_viz_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/panel_viz_mcp"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

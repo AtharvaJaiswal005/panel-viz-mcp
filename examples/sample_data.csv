@@ -1,0 +1,17 @@
+region,sales,quarter,category
+East,45000,Q1,Electronics
+West,32000,Q1,Electronics
+North,21000,Q1,Electronics
+South,38000,Q1,Electronics
+East,52000,Q2,Electronics
+West,41000,Q2,Electronics
+North,29000,Q2,Electronics
+South,43000,Q2,Electronics
+East,38000,Q1,Clothing
+West,27000,Q1,Clothing
+North,19000,Q1,Clothing
+South,31000,Q1,Clothing
+East,44000,Q2,Clothing
+West,35000,Q2,Clothing
+North,24000,Q2,Clothing
+South,37000,Q2,Clothing
