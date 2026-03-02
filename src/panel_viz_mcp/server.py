@@ -1395,22 +1395,23 @@ def launch_panel(viz_id: str) -> str:
 
         # Wait for Panel server to be ready before opening browser
         ready = False
-        for _ in range(60):  # up to 15 seconds
+        for _ in range(25):  # up to ~5 seconds
             if process.poll() is not None:
                 del _panel_servers[viz_id]
                 return json.dumps({"action": "error", "message": "Panel server crashed on startup"})
             try:
-                with socket.create_connection(("localhost", port), timeout=0.5):
+                with socket.create_connection(("localhost", port), timeout=0.3):
                     ready = True
                     break
             except OSError:
-                time.sleep(0.25)
+                time.sleep(0.2)
 
         if not ready:
-            return json.dumps({"action": "error", "message": f"Panel server not ready after 15s (port {port})"})
-
-        # Extra delay for HTTP layer to initialize after socket is open
-        time.sleep(1.0)
+            # Return URL anyway - user can refresh when ready
+            pass
+        else:
+            # Brief pause for HTTP layer after socket connect
+            time.sleep(0.5)
 
         try:
             webbrowser.open(url)
@@ -1616,13 +1617,13 @@ def viz_view() -> str:
         '        const t = response?.content?.find(c => c.type === "text");\n'
         "        if (t) {\n"
         "          const r = JSON.parse(t.text);\n"
-        '          if (r.action === "panel_launched") {\n'
-        '            document.getElementById("status").textContent = "Panel app: " + r.url;\n'
-        "          }\n"
+        '          if (r.url) document.getElementById("status").textContent = "Panel app: " + r.url;\n'
         "        }\n"
         "      } catch (err) { console.log('Panel launch:', err); }\n"
-        '      btn.textContent = "Open in Panel";\n'
-        "      btn.disabled = false;\n"
+        "      finally {\n"
+        '        btn.textContent = "Open in Panel";\n'
+        "        btn.disabled = false;\n"
+        "      }\n"
         "    };\n"
         "\n"
         "    window.addEventListener('bokeh-tap', async (e) => {\n"
@@ -1764,13 +1765,14 @@ def dashboard_view() -> str:
         "    }\n"
         "    .toolbar-btn:hover { border-color: var(--accent); color: var(--accent); }\n"
         "    .dashboard-layout { display: flex; gap: 12px; }\n"
-        "    .dashboard-main { flex: 1; min-width: 0; }\n"
+        "    .dashboard-main { flex: 1; min-width: 0; overflow: hidden; }\n"
         "    .filter-sidebar {\n"
-        "      width: 220px; flex-shrink: 0;\n"
+        "      width: 180px; flex-shrink: 0; overflow: hidden;\n"
         "      background: var(--bg-card); border: 1px solid var(--border);\n"
-        "      border-radius: 8px; padding: 12px;\n"
-        "      max-height: 600px; overflow-y: auto;\n"
+        "      border-radius: 8px; padding: 10px;\n"
+        "      max-height: 500px; overflow-y: auto;\n"
         "    }\n"
+        "    .filter-range { max-width: 100%; }\n"
         "    .filter-title {\n"
         "      font-size: 12px; color: var(--text-secondary); text-transform: uppercase;\n"
         "      letter-spacing: 0.5px; margin-bottom: 12px; padding-bottom: 6px;\n"
@@ -1882,13 +1884,13 @@ def dashboard_view() -> str:
         '        const t = response?.content?.find(c => c.type === "text");\n'
         "        if (t) {\n"
         "          const r = JSON.parse(t.text);\n"
-        '          if (r.action === "panel_launched") {\n'
-        '            document.getElementById("status").textContent = "Panel app: " + r.url;\n'
-        "          }\n"
+        '          if (r.url) document.getElementById("status").textContent = "Panel app: " + r.url;\n'
         "        }\n"
         "      } catch (err) { console.log('Panel launch:', err); }\n"
-        '      btn.textContent = "Open in Panel";\n'
-        "      btn.disabled = false;\n"
+        "      finally {\n"
+        '        btn.textContent = "Open in Panel";\n'
+        "        btn.disabled = false;\n"
+        "      }\n"
         "    };\n"
         "\n"
         "    function buildFilterWidgets(config) {\n"
