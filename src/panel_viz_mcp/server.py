@@ -564,6 +564,8 @@ def _find_free_port() -> int:
 
 def _generate_panel_code(viz: dict) -> str:
     """Generate a rich standalone Panel app with FloatPanel inspector, Tabulator, and indicators."""
+    if viz["kind"] == "points":
+        return _generate_geo_panel_code(viz)
     data_json = json.dumps(viz["data"])
     kind = viz["kind"]
     x_col = viz["x"]
@@ -584,12 +586,7 @@ def _generate_panel_code(viz: dict) -> str:
         df = pd.DataFrame(data)
 
         CHART_TYPES = ["bar", "line", "scatter", "area", "step",
-                       "histogram", "box", "violin", "kde", "points"]
-        try:
-            import geoviews  # noqa: F401
-            HAS_GEO = True
-        except ImportError:
-            HAS_GEO = False
+                       "histogram", "box", "violin", "kde"]
         PALETTES = {{
             "Default": None, "Category10": "Category10",
             "Viridis": "Viridis", "Plasma": "Plasma",
@@ -687,12 +684,6 @@ def _generate_panel_code(viz: dict) -> str:
                     if c:
                         pk["by"] = c
                     return filtered.hvplot.kde(**pk)
-                elif ct == "points" and HAS_GEO:
-                    pk = {{"title": ttl, "x": x, "y": y, "geo": True, "tiles": "CartoDark",
-                           "frame_height": h, "frame_width": 700}}
-                    if c:
-                        pk["c"] = c
-                    return filtered.hvplot.points(**pk)
                 else:
                     return filtered.hvplot.bar(**{{**base, "x": x, "y": y}})
             except Exception as e:
@@ -777,6 +768,139 @@ def _generate_panel_code(viz: dict) -> str:
             title="{title}",
             sidebar=sidebar_items,
             main=[main_area, inspector],
+            theme="dark",
+            accent_base_color="#818cf8",
+            header_background="#1e293b",
+        ).servable()
+    ''')
+
+
+def _generate_geo_panel_code(viz: dict) -> str:
+    """Generate a DeckGL-based Panel app for geographic data with CARTO dark basemap."""
+    data_json = json.dumps(viz["data"])
+    x_col = viz["x"]
+    y_col = viz["y"]
+    title = viz["title"]
+
+    # Pre-compute map center and zoom from the data
+    df_temp = pd.DataFrame(viz["data"])
+    center_lon = round(float(df_temp[x_col].mean()), 4)
+    center_lat = round(float(df_temp[y_col].mean()), 4)
+    lon_range = float(df_temp[x_col].max() - df_temp[x_col].min())
+    lat_range = float(df_temp[y_col].max() - df_temp[y_col].min())
+    max_range = max(lon_range, lat_range, 0.01)
+    zoom = max(1, min(14, round(8.5 - math.log2(max_range))))
+    default_radius = max(1000, int(80000 / (2 ** max(0, zoom - 1))))
+
+    return textwrap.dedent(f'''\
+        import json
+        import pandas as pd
+        import panel as pn
+
+        pn.extension("deckgl", sizing_mode="stretch_width")
+
+        # --- Data ---
+        data = json.loads("""{data_json}""")
+        df = pd.DataFrame(data)
+
+        # --- Sidebar: Map Controls ---
+        radius_w = pn.widgets.IntSlider(
+            name="Radius", start=500, end=500000, value={default_radius}, step=1000,
+            bar_color="#818cf8",
+        )
+        elevation_w = pn.widgets.IntSlider(
+            name="Elevation", start=1, end=100, value=10, step=1,
+            bar_color="#818cf8",
+        )
+        pitch_w = pn.widgets.IntSlider(
+            name="Pitch", start=0, end=60, value=40, step=5,
+            bar_color="#818cf8",
+        )
+
+        # Categorical filters (exclude coordinate columns)
+        cat_cols = [c for c in df.columns
+                    if df[c].dtype == "object" and c not in ("{x_col}", "{y_col}")]
+        filter_widgets = {{}}
+        for col in cat_cols:
+            opts = ["All"] + sorted(df[col].unique().tolist())
+            filter_widgets[col] = pn.widgets.Select(name=col, options=opts, value="All")
+
+        # Numeric columns (exclude coordinates) for size mapping
+        num_cols = [c for c in df.columns
+                    if pd.api.types.is_numeric_dtype(df[c]) and c not in ("{x_col}", "{y_col}")]
+
+        sidebar = [
+            pn.pane.Markdown("### Map Controls", styles={{"margin": "0"}}),
+            radius_w, elevation_w, pitch_w,
+        ]
+        if filter_widgets:
+            sidebar.append(pn.layout.Divider())
+            sidebar.append(pn.pane.Markdown("### Filters", styles={{"margin": "0"}}))
+            sidebar.extend(filter_widgets.values())
+        sidebar.append(pn.layout.Divider())
+        sidebar.append(pn.widgets.FileDownload(
+            callback=lambda: df.to_csv(index=False).encode(),
+            filename="geo_data.csv", button_type="primary", label="Download CSV", width=200,
+        ))
+
+        # --- Reactive DeckGL Map ---
+        @pn.depends(radius_w, elevation_w, pitch_w,
+                    **{{k: v for k, v in filter_widgets.items()}})
+        def deck_map(radius, elevation, pitch, **kwargs):
+            filtered = df.copy()
+            for col, val in kwargs.items():
+                if val != "All":
+                    filtered = filtered[filtered[col] == val]
+            if filtered.empty:
+                return pn.pane.Alert("No data matches current filters.", alert_type="warning")
+
+            records = filtered.to_dict("records")
+
+            spec = {{
+                "initialViewState": {{
+                    "longitude": {center_lon},
+                    "latitude": {center_lat},
+                    "zoom": {zoom},
+                    "pitch": pitch,
+                    "bearing": 0,
+                }},
+                "mapStyle": "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+                "layers": [{{
+                    "@@type": "ScatterplotLayer",
+                    "data": records,
+                    "getPosition": "@@=[{x_col}, {y_col}]",
+                    "getRadius": radius,
+                    "getFillColor": [130, 140, 248, 200],
+                    "getLineColor": [255, 255, 255, 60],
+                    "pickable": True,
+                    "stroked": True,
+                    "lineWidthMinPixels": 1,
+                    "radiusMinPixels": 4,
+                    "radiusMaxPixels": 50,
+                    "autoHighlight": True,
+                    "highlightColor": [255, 200, 0, 200],
+                }}],
+                "views": [{{"@@type": "MapView", "controller": True}}],
+            }}
+            return pn.pane.DeckGL(spec, height=700, sizing_mode="stretch_width")
+
+        # --- Points counter ---
+        @pn.depends(**{{k: v for k, v in filter_widgets.items()}})
+        def point_count(**kwargs):
+            filtered = df.copy()
+            for col, val in kwargs.items():
+                if val != "All":
+                    filtered = filtered[filtered[col] == val]
+            return pn.indicators.Number(
+                name="Points", value=len(filtered), format="{{value:,}}",
+                default_color="currentcolor", font_size="28px", title_size="12px",
+                styles={{"border-left": "3px solid #818cf8", "padding-left": "12px"}},
+            )
+
+        pn.template.FastListTemplate(
+            title="{title}",
+            sidebar=sidebar,
+            main=[point_count, deck_map],
             theme="dark",
             accent_base_color="#818cf8",
             header_background="#1e293b",
