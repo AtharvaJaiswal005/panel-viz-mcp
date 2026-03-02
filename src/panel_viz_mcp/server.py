@@ -584,7 +584,12 @@ def _generate_panel_code(viz: dict) -> str:
         df = pd.DataFrame(data)
 
         CHART_TYPES = ["bar", "line", "scatter", "area", "step",
-                       "histogram", "box", "violin", "kde"]
+                       "histogram", "box", "violin", "kde", "points"]
+        try:
+            import geoviews  # noqa: F401
+            HAS_GEO = True
+        except ImportError:
+            HAS_GEO = False
         PALETTES = {{
             "Default": None, "Category10": "Category10",
             "Viridis": "Viridis", "Plasma": "Plasma",
@@ -628,9 +633,13 @@ def _generate_panel_code(viz: dict) -> str:
         chart_type_w = pn.widgets.Select(name="Chart Type", options=CHART_TYPES, value="{kind}")
         x_w = pn.widgets.Select(name="X Axis", options=all_cols, value="{x_col}")
         y_w = pn.widgets.Select(name="Y Axis", options=numeric_cols, value="{y_col}")
+        color_opts = ["None"] + categorical_cols
+        _initial_color = {repr(color)} if {repr(color)} else "None"
+        if _initial_color not in color_opts and _initial_color != "None":
+            color_opts.append(_initial_color)
         color_w = pn.widgets.Select(
-            name="Color By", options=["None"] + categorical_cols,
-            value={repr(color)} if {repr(color)} else "None",
+            name="Color By", options=color_opts,
+            value=_initial_color,
         )
         title_w = pn.widgets.TextInput(name="Title", value="{title}")
         palette_w = pn.widgets.Select(name="Palette", options=list(PALETTES.keys()), value="Default")
@@ -678,6 +687,12 @@ def _generate_panel_code(viz: dict) -> str:
                     if c:
                         pk["by"] = c
                     return filtered.hvplot.kde(**pk)
+                elif ct == "points" and HAS_GEO:
+                    pk = {{"title": ttl, "x": x, "y": y, "geo": True, "tiles": "CartoDark",
+                           "frame_height": h, "frame_width": 700}}
+                    if c:
+                        pk["c"] = c
+                    return filtered.hvplot.points(**pk)
                 else:
                     return filtered.hvplot.bar(**{{**base, "x": x, "y": y}})
             except Exception as e:
@@ -1425,8 +1440,9 @@ def launch_panel(viz_id: str) -> str:
             return json.dumps({"action": "error", "message": f"Visualization {viz_id} not found"})
 
         viz = _viz_store[viz_id]
-        if viz["kind"] in ("stream",):
-            return json.dumps({"action": "error", "message": "Stream charts cannot be launched as Panel apps"})
+        if viz["kind"] in ("stream", "multi"):
+            return json.dumps({"action": "error",
+                               "message": "Stream/multi charts cannot be launched as Panel apps yet"})
 
         if viz_id in _panel_servers:
             url = _panel_servers[viz_id]["url"]
