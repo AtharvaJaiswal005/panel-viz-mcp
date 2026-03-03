@@ -563,7 +563,7 @@ def _find_free_port() -> int:
 
 
 def _generate_panel_code(viz: dict) -> str:
-    """Generate a rich standalone Panel app with FloatPanel inspector, Tabulator, and indicators."""
+    """Generate a gallery-quality Panel app with cross-filtering linked charts."""
     if viz["kind"] == "points":
         return _generate_geo_panel_code(viz)
     data_json = json.dumps(viz["data"])
@@ -573,201 +573,120 @@ def _generate_panel_code(viz: dict) -> str:
     title = viz["title"]
     color = viz.get("color")
 
+    df_temp = pd.DataFrame(viz["data"])
+    n_rows = len(df_temp)
+    n_cols = len(df_temp.columns)
+    color_repr = repr(color)
+
     return textwrap.dedent(f'''\
         import json
         import pandas as pd
         import panel as pn
+        import holoviews as hv
         import hvplot.pandas  # noqa: F401
 
-        pn.extension("floatpanel", "tabulator", sizing_mode="stretch_width")
+        pn.extension(sizing_mode="stretch_width")
+        hv.extension("bokeh")
+        hv.renderer("bokeh").theme = "dark_minimal"
 
-        # --- Data ---
-        data = json.loads("""{data_json}""")
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(json.loads("""{data_json}"""))
 
-        CHART_TYPES = ["bar", "line", "scatter", "area", "step",
-                       "histogram", "box", "violin", "kde"]
-        PALETTES = {{
-            "Default": None, "Category10": "Category10",
-            "Viridis": "Viridis", "Plasma": "Plasma",
-            "Inferno": "Inferno", "Magma": "Magma",
-        }}
+        cat_cols = [c for c in df.columns if df[c].dtype == "object"]
+        num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
 
-        categorical_cols = [c for c in df.columns if df[c].dtype == "object"]
-        numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
-        all_cols = list(df.columns)
+        KIND = "{kind}"
+        X = "{x_col}"
+        Y = "{y_col}"
+        C = {color_repr}
+        if C and C not in df.columns:
+            C = cat_cols[0] if cat_cols else None
 
-        # ========================= SIDEBAR FILTERS =========================
-        filter_header = pn.pane.Markdown(
-            "### Filters\\nNarrow down the data",
-            styles={{"margin-bottom": "10px"}},
-        )
-        filter_widgets = {{}}
-        for col in categorical_cols:
-            opts = ["All"] + sorted(df[col].unique().tolist())
-            filter_widgets[col] = pn.widgets.Select(name=col, options=opts, value="All")
-        for col in numeric_cols:
-            filter_widgets[col] = pn.widgets.RangeSlider(
-                name=col, start=float(df[col].min()), end=float(df[col].max()),
-                value=(float(df[col].min()), float(df[col].max())),
-                bar_color="#818cf8",
-            )
+        ls = hv.link_selections.instance()
+        H = 350
 
-        download_btn = pn.widgets.FileDownload(
-            callback=lambda: df.to_csv(index=False).encode(),
-            filename="data.csv",
-            button_type="primary",
-            label="Download CSV",
-            width=200,
-        )
+        # ==================== Build linked chart grid ====================
+        plots = []
 
-        sidebar_items = [filter_header]
-        sidebar_items.extend(filter_widgets.values())
-        sidebar_items.append(pn.layout.Divider())
-        sidebar_items.append(download_btn)
+        # 1. Main chart
+        kw = {{"responsive": True, "height": H}}
+        if KIND in ("scatter",):
+            kw["x"], kw["y"] = X, Y
+            if C:
+                kw["c"] = C
+            plots.append(df.hvplot.scatter(**kw))
+        elif KIND in ("bar", "line", "area", "step"):
+            kw["x"], kw["y"] = X, Y
+            if C:
+                kw["by"] = C
+            plots.append(getattr(df.hvplot, KIND)(**kw))
+        elif KIND == "histogram":
+            kw["y"] = Y
+            if C:
+                kw["by"] = C
+            kw["alpha"] = 0.7
+            plots.append(df.hvplot.hist(**kw))
+        elif KIND in ("box", "violin"):
+            kw["y"] = Y
+            by = X if X in cat_cols else C
+            if by:
+                kw["by"] = by
+            plots.append(getattr(df.hvplot, KIND)(**kw))
+        elif KIND == "kde":
+            kw["y"] = Y
+            if C:
+                kw["by"] = C
+            plots.append(df.hvplot.kde(**kw))
+        else:
+            kw["x"], kw["y"] = X, Y
+            plots.append(df.hvplot.bar(**kw))
 
-        # ========================= CHART INSPECTOR =========================
-        chart_type_w = pn.widgets.Select(name="Chart Type", options=CHART_TYPES, value="{kind}")
-        x_w = pn.widgets.Select(name="X Axis", options=all_cols, value="{x_col}")
-        y_w = pn.widgets.Select(name="Y Axis", options=numeric_cols, value="{y_col}")
-        color_opts = ["None"] + categorical_cols
-        _initial_color = {repr(color)} if {repr(color)} else "None"
-        if _initial_color not in color_opts and _initial_color != "None":
-            color_opts.append(_initial_color)
-        color_w = pn.widgets.Select(
-            name="Color By", options=color_opts,
-            value=_initial_color,
-        )
-        title_w = pn.widgets.TextInput(name="Title", value="{title}")
-        palette_w = pn.widgets.Select(name="Palette", options=list(PALETTES.keys()), value="Default")
-        height_w = pn.widgets.IntSlider(name="Chart Height", start=250, end=800, value=450, step=50)
+        # 2. Histogram of Y (if main chart isn't already a histogram)
+        if KIND != "histogram":
+            hkw = {{"y": Y, "responsive": True, "height": H, "alpha": 0.7}}
+            if C:
+                hkw["by"] = C
+            plots.append(df.hvplot.hist(**hkw))
 
-        # ========================= REACTIVE FUNCTIONS =========================
-        def get_filtered_df(**kwargs):
-            filtered = df.copy()
-            for col, val in kwargs.items():
-                if col in categorical_cols and val != "All":
-                    filtered = filtered[filtered[col] == val]
-                elif col in numeric_cols:
-                    filtered = filtered[(filtered[col] >= val[0]) & (filtered[col] <= val[1])]
-            return filtered
+        # 3. Box plot by category (if categorical column available)
+        if KIND not in ("box", "violin") and (C or cat_cols):
+            by = C if C and C in cat_cols else (cat_cols[0] if cat_cols else None)
+            if by:
+                plots.append(df.hvplot.box(y=Y, by=by, responsive=True, height=H))
 
-        @pn.depends(chart_type_w, x_w, y_w, color_w, title_w, palette_w, height_w,
-                    **{{k: v for k, v in filter_widgets.items()}})
-        def main_chart(ct, x, y, clr, ttl, pal, h, **kwargs):
-            filtered = get_filtered_df(**kwargs)
-            if filtered.empty:
-                return pn.pane.Alert("No data matches current filters.", alert_type="warning")
-            c = clr if clr != "None" else None
-            base = {{"title": ttl, "responsive": True, "height": h}}
-            if PALETTES.get(pal):
-                base["cmap"] = PALETTES[pal]
-            simple = {{"bar", "line", "scatter", "area", "step"}}
-            try:
-                if ct in simple:
-                    pk = {{**base, "x": x, "y": y}}
-                    if c:
-                        pk["by"] = c
-                    return getattr(filtered.hvplot, ct)(**pk)
-                elif ct == "histogram":
-                    pk = {{**base, "y": y}}
-                    if c:
-                        pk["by"] = c
-                    return filtered.hvplot.hist(**pk)
-                elif ct in ("box", "violin"):
-                    pk = {{**base, "y": y}}
-                    if x and x in filtered.columns and filtered[x].dtype == "object":
-                        pk["by"] = x
-                    return getattr(filtered.hvplot, ct)(**pk)
-                elif ct == "kde":
-                    pk = {{**base, "y": y}}
-                    if c:
-                        pk["by"] = c
-                    return filtered.hvplot.kde(**pk)
-                else:
-                    return filtered.hvplot.bar(**{{**base, "x": x, "y": y}})
-            except Exception as e:
-                return pn.pane.Alert(f"Chart error: {{e}}", alert_type="danger")
+        # 4. Extra scatter (if additional numeric columns exist)
+        if KIND != "scatter" and len(num_cols) >= 2:
+            others = [c for c in num_cols if c != Y]
+            if others:
+                ekw = {{"x": others[0], "y": Y, "responsive": True, "height": H}}
+                if C:
+                    ekw["c"] = C
+                plots.append(df.hvplot.scatter(**ekw))
 
-        @pn.depends(**{{k: v for k, v in filter_widgets.items()}})
-        def indicators(**kwargs):
-            filtered = get_filtered_df(**kwargs)
-            if filtered.empty or "{y_col}" not in filtered.columns:
-                return pn.pane.Markdown("No data")
-            s = filtered["{y_col}"]
-            return pn.FlexBox(
-                pn.indicators.Number(
-                    name="Rows", value=int(len(filtered)), format="{{value:,}}",
-                    default_color="currentcolor", font_size="28px",
-                    title_size="12px", styles={{"border-left": "3px solid #818cf8", "padding-left": "12px"}},
-                ),
-                pn.indicators.Number(
-                    name="Mean", value=round(float(s.mean()), 2), format="{{value:,.2f}}",
-                    default_color="currentcolor", font_size="28px",
-                    title_size="12px", styles={{"border-left": "3px solid #4ade80", "padding-left": "12px"}},
-                ),
-                pn.indicators.Number(
-                    name="Sum", value=round(float(s.sum()), 2), format="{{value:,.2f}}",
-                    default_color="currentcolor", font_size="28px",
-                    title_size="12px", styles={{"border-left": "3px solid #f59e0b", "padding-left": "12px"}},
-                ),
-                pn.indicators.Number(
-                    name="Min", value=round(float(s.min()), 2), format="{{value:,.2f}}",
-                    default_color="currentcolor", font_size="28px",
-                    title_size="12px", styles={{"border-left": "3px solid #38bdf8", "padding-left": "12px"}},
-                ),
-                pn.indicators.Number(
-                    name="Max", value=round(float(s.max()), 2), format="{{value:,.2f}}",
-                    default_color="currentcolor", font_size="28px",
-                    title_size="12px", styles={{"border-left": "3px solid #ef4444", "padding-left": "12px"}},
-                ),
-            )
+        # ==================== Cross-filtered layout ====================
+        try:
+            layout = ls(hv.Layout(plots).cols(2))
+        except Exception:
+            layout = hv.Layout(plots).cols(2)
 
-        @pn.depends(**{{k: v for k, v in filter_widgets.items()}})
-        def data_table(**kwargs):
-            filtered = get_filtered_df(**kwargs)
-            return pn.widgets.Tabulator(
-                filtered, height=350, show_index=False,
-                theme="midnight", page_size=25,
-                frozen_columns=[filtered.columns[0]] if len(filtered.columns) > 3 else [],
-                header_filters=True,
-            )
-
-        @pn.depends(**{{k: v for k, v in filter_widgets.items()}})
-        def data_summary(**kwargs):
-            filtered = get_filtered_df(**kwargs)
-            if filtered.empty:
-                return pn.pane.Markdown("No data")
-            desc = filtered.describe().round(2)
-            return pn.pane.DataFrame(desc, width=400)
-
-        # ========================= LAYOUT =========================
-        inspector = pn.layout.FloatPanel(
-            pn.Column(chart_type_w, x_w, y_w, color_w, palette_w, height_w, title_w),
-            name="Chart Inspector",
-            contained=False,
-            position="right-top",
-            margin=20,
-        )
-
-        tabs = pn.Tabs(
-            ("Table", data_table),
-            ("Summary", data_summary),
-            dynamic=True,
-        )
-
-        main_area = pn.Column(
-            indicators,
-            pn.layout.Divider(),
-            main_chart,
-            pn.layout.Divider(),
-            tabs,
+        sidebar_md = (
+            "### {title}\\n\\n"
+            "Explore with **cross-filtering** - use the box-select or lasso "
+            "tools to select data on any chart. All views update automatically."
+            "\\n\\n**{n_rows:,}** rows | **{n_cols}** columns"
         )
 
         pn.template.FastListTemplate(
             title="{title}",
-            sidebar=sidebar_items,
-            main=[main_area, inspector],
+            sidebar=[
+                pn.pane.Markdown(sidebar_md),
+                pn.layout.Divider(),
+                pn.widgets.FileDownload(
+                    callback=lambda: df.to_csv(index=False).encode(),
+                    filename="data.csv", button_type="primary",
+                    label="Download CSV", width=200,
+                ),
+            ],
+            main=[pn.pane.HoloViews(layout, sizing_mode="stretch_both")],
             theme="dark",
             accent_base_color="#818cf8",
             header_background="#1e293b",
@@ -776,7 +695,7 @@ def _generate_panel_code(viz: dict) -> str:
 
 
 def _generate_geo_panel_code(viz: dict) -> str:
-    """Generate a DeckGL-based Panel app for geographic data with CARTO dark basemap."""
+    """Generate a DeckGL-based Panel app with CARTO dark basemap, Scatter + Hexagon layers."""
     data_json = json.dumps(viz["data"])
     x_col = viz["x"]
     y_col = viz["y"]
@@ -799,11 +718,12 @@ def _generate_geo_panel_code(viz: dict) -> str:
 
         pn.extension("deckgl", sizing_mode="stretch_width")
 
-        # --- Data ---
-        data = json.loads("""{data_json}""")
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(json.loads("""{data_json}"""))
 
-        # --- Sidebar: Map Controls ---
+        # --- Sidebar ---
+        layer_w = pn.widgets.Select(
+            name="Layer", options=["Scatter", "Hexagon"], value="Scatter",
+        )
         radius_w = pn.widgets.IntSlider(
             name="Radius", start=500, end=500000, value={default_radius}, step=1000,
             bar_color="#818cf8",
@@ -817,7 +737,6 @@ def _generate_geo_panel_code(viz: dict) -> str:
             bar_color="#818cf8",
         )
 
-        # Categorical filters (exclude coordinate columns)
         cat_cols = [c for c in df.columns
                     if df[c].dtype == "object" and c not in ("{x_col}", "{y_col}")]
         filter_widgets = {{}}
@@ -825,13 +744,9 @@ def _generate_geo_panel_code(viz: dict) -> str:
             opts = ["All"] + sorted(df[col].unique().tolist())
             filter_widgets[col] = pn.widgets.Select(name=col, options=opts, value="All")
 
-        # Numeric columns (exclude coordinates) for size mapping
-        num_cols = [c for c in df.columns
-                    if pd.api.types.is_numeric_dtype(df[c]) and c not in ("{x_col}", "{y_col}")]
-
         sidebar = [
             pn.pane.Markdown("### Map Controls", styles={{"margin": "0"}}),
-            radius_w, elevation_w, pitch_w,
+            layer_w, radius_w, elevation_w, pitch_w,
         ]
         if filter_widgets:
             sidebar.append(pn.layout.Divider())
@@ -844,9 +759,9 @@ def _generate_geo_panel_code(viz: dict) -> str:
         ))
 
         # --- Reactive DeckGL Map ---
-        @pn.depends(radius_w, elevation_w, pitch_w,
+        @pn.depends(layer_w, radius_w, elevation_w, pitch_w,
                     **{{k: v for k, v in filter_widgets.items()}})
-        def deck_map(radius, elevation, pitch, **kwargs):
+        def deck_map(layer_type, radius, elevation, pitch, **kwargs):
             filtered = df.copy()
             for col, val in kwargs.items():
                 if val != "All":
@@ -856,16 +771,22 @@ def _generate_geo_panel_code(viz: dict) -> str:
 
             records = filtered.to_dict("records")
 
-            spec = {{
-                "initialViewState": {{
-                    "longitude": {center_lon},
-                    "latitude": {center_lat},
-                    "zoom": {zoom},
-                    "pitch": pitch,
-                    "bearing": 0,
-                }},
-                "mapStyle": "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-                "layers": [{{
+            if layer_type == "Hexagon":
+                layer = {{
+                    "@@type": "HexagonLayer",
+                    "data": records,
+                    "getPosition": "@@=[{x_col}, {y_col}]",
+                    "elevationRange": [0, 3000],
+                    "elevationScale": elevation,
+                    "extruded": True,
+                    "radius": radius,
+                    "coverage": 0.8,
+                    "pickable": True,
+                    "autoHighlight": True,
+                    "highlightColor": [255, 200, 0, 200],
+                }}
+            else:
+                layer = {{
                     "@@type": "ScatterplotLayer",
                     "data": records,
                     "getPosition": "@@=[{x_col}, {y_col}]",
@@ -879,7 +800,18 @@ def _generate_geo_panel_code(viz: dict) -> str:
                     "radiusMaxPixels": 50,
                     "autoHighlight": True,
                     "highlightColor": [255, 200, 0, 200],
-                }}],
+                }}
+
+            spec = {{
+                "initialViewState": {{
+                    "longitude": {center_lon},
+                    "latitude": {center_lat},
+                    "zoom": {zoom},
+                    "pitch": pitch,
+                    "bearing": 0,
+                }},
+                "mapStyle": "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+                "layers": [layer],
                 "views": [{{"@@type": "MapView", "controller": True}}],
             }}
             return pn.pane.DeckGL(spec, height=700, sizing_mode="stretch_width")
@@ -1594,16 +1526,16 @@ def launch_panel(viz_id: str) -> str:
         # Wait for HTTP ready in background thread, then open browser
         # This way the tool returns instantly (MCP clients time out on long calls)
         def _wait_and_open():
-            for _ in range(40):  # up to ~12 seconds
+            for _ in range(60):  # up to ~30 seconds (HoloViews apps need longer)
                 if process.poll() is not None:
                     return
                 try:
-                    req = urllib.request.urlopen(url, timeout=1)
+                    req = urllib.request.urlopen(url, timeout=3)
                     req.close()
                     webbrowser.open(url)
                     return
                 except Exception:
-                    time.sleep(0.3)
+                    time.sleep(0.5)
 
         threading.Thread(target=_wait_and_open, daemon=True).start()
 

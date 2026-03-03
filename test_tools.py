@@ -282,8 +282,8 @@ async def main():
         code = _generate_panel_code(test_viz)
         ast.parse(code)  # Raises SyntaxError if invalid
         assert "pn.extension" in code
-        assert "FloatPanel" in code
-        assert "Tabulator" in code
+        assert "link_selections" in code
+        assert "hvplot" in code
         assert "FastListTemplate" in code
         print(f"  code length={len(code)}, syntax=valid - PASS")
 
