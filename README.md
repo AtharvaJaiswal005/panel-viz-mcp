@@ -93,13 +93,46 @@ Then pick your client:
 
 Paste this prompt and let the AI handle the installation:
 
-> Install the panel-viz-mcp MCP server for me. Here are the exact steps:
-> 1. Clone the repo: `git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git`
-> 2. Install it with pip using the full Python path (on Windows use `python -m pip install -e .` inside the cloned directory, NOT bare `pip`)
-> 3. After install, register the MCP server by running: `claude mcp add panel-viz-mcp -- panel-viz-mcp`
-> 4. If `panel-viz-mcp` command is not found, use the full path instead: `claude mcp add panel-viz-mcp -- python -m panel_viz_mcp.server` and set the working directory to the `src/` folder inside the cloned repo
+> Install the panel-viz-mcp MCP server. Follow these steps exactly:
 >
-> For Claude Desktop config, edit `claude_desktop_config.json` at `%APPDATA%\Claude\claude_desktop_config.json` and add panel-viz-mcp as an MCP server. Use the full Python path if needed (e.g. `C:/Users/<user>/AppData/Local/Programs/Python/Python311/python.exe`).
+> Step 1 - Clone:
+> ```
+> git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+> ```
+>
+> Step 2 - Find the real Python (NOT the Windows Store stub). Run `where python` or `which python3` and pick the one under `AppData/Local/Programs/Python` or similar, not `WindowsApps`. Store this path as PYTHON_PATH.
+>
+> Step 3 - Install using that Python:
+> ```
+> cd panel-viz-mcp
+> <PYTHON_PATH> -m pip install -e .
+> ```
+> Do NOT use bare `pip` - it may not be on PATH.
+>
+> Step 4 - Verify the command exists:
+> ```
+> <PYTHON_PATH> -m panel_viz_mcp.server --help
+> ```
+> Also check if `panel-viz-mcp` script was installed by looking in the Scripts folder next to PYTHON_PATH (e.g. `C:/Users/<user>/AppData/Local/Programs/Python/Python311/Scripts/panel-viz-mcp`).
+>
+> Step 5 - Register the MCP server. Try this first:
+> ```
+> claude mcp add panel-viz-mcp -- panel-viz-mcp
+> ```
+> If that fails because the command is not found, use the full path:
+> ```
+> claude mcp add panel-viz-mcp -- <PYTHON_PATH> -m panel_viz_mcp.server
+> ```
+>
+> Step 6 - For Claude Desktop, edit the config file at `%APPDATA%\Claude\claude_desktop_config.json` (on Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (on Mac). Add this to the "mcpServers" object:
+> ```json
+> "panel-viz-mcp": {
+>   "command": "panel-viz-mcp"
+> }
+> ```
+> If `panel-viz-mcp` is not on PATH, use the full script path or use `"command": "<PYTHON_PATH>", "args": ["-m", "panel_viz_mcp.server"]` instead.
+>
+> After editing the config, tell the user to fully restart Claude Desktop.
 
 Or do it manually:
 
