@@ -90,13 +90,15 @@ pip install "panel-viz-mcp[geo] @ git+https://github.com/AtharvaJaiswal005/panel
 
 ### VS Code / Copilot Chat
 
-Add to your MCP settings (`.vscode/mcp.json` or User Settings):
+Add to `.vscode/mcp.json` (or User Settings > MCP):
 
 ```json
 {
   "servers": {
     "panel-viz-mcp": {
-      "command": "panel-viz-mcp"
+      "command": "python",
+      "args": ["-m", "panel_viz_mcp.server"],
+      "cwd": "/path/to/panel-viz-mcp/src"
     }
   }
 }
@@ -104,23 +106,31 @@ Add to your MCP settings (`.vscode/mcp.json` or User Settings):
 
 ### Claude Desktop
 
-Add to `claude_desktop_config.json`:
+Go to **Settings > Developer > Edit Config** and add:
 
 ```json
 {
   "mcpServers": {
     "panel-viz-mcp": {
-      "command": "panel-viz-mcp"
+      "command": "python",
+      "args": ["-m", "panel_viz_mcp.server"],
+      "cwd": "/path/to/panel-viz-mcp/src"
     }
   }
 }
 ```
 
-### Claude Code
+Save, then fully restart Claude Desktop.
+
+### Claude Code (CLI)
 
 ```bash
-claude mcp add panel-viz-mcp -- panel-viz-mcp
+claude mcp add panel-viz-mcp -- python -m panel_viz_mcp.server --cwd /path/to/panel-viz-mcp/src
 ```
+
+### Cursor / Goose / Other MCP Clients
+
+Use the same stdio transport config - command: `python`, args: `["-m", "panel_viz_mcp.server"]`, with `cwd` pointing to the `src/` directory.
 
 ## Usage Examples
 
