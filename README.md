@@ -182,7 +182,9 @@ Use stdio transport with command `panel-viz-mcp`.
 
 ### Let the agent install it for you
 
-If you prefer, paste one of these prompts and the AI agent will handle the full setup.
+Paste one prompt and the AI agent handles everything - clone, install, configure, verify.
+
+![Auto Install](docs/screenshots/auto-install.gif)
 
 **VS Code Copilot Chat** (Ctrl+Shift+I, Agent mode):
 
