@@ -62,13 +62,14 @@ def viz_view() -> str:
         "      font-family: monospace; font-size: 11px; resize: vertical;\n"
         "    }\n"
         "    .geo-banner {\n"
-        "      display: none; background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(59,130,246,0.15));\n"
-        "      border: 1px solid rgba(99,102,241,0.3); border-radius: 8px; padding: 12px 16px;\n"
-        "      margin-top: 8px; text-align: center;\n"
+        "      display: none; background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(59,130,246,0.12));\n"
+        "      border: 1px solid rgba(99,102,241,0.3); border-radius: 12px; padding: 40px 24px;\n"
+        "      margin-top: 8px; text-align: center; min-height: 280px;\n"
+        "      display: none; align-items: center; justify-content: center; flex-direction: column;\n"
         "    }\n"
-        "    .geo-banner .geo-icon { font-size: 24px; margin-bottom: 4px; }\n"
-        "    .geo-banner .geo-text { font-size: 13px; color: #a5b4fc; }\n"
-        "    .geo-banner .geo-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }\n"
+        "    .geo-banner .geo-icon { font-size: 48px; margin-bottom: 12px; }\n"
+        "    .geo-banner .geo-text { font-size: 16px; color: #a5b4fc; line-height: 1.5; }\n"
+        "    .geo-banner .geo-hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; }\n"
         "  </style>\n"
         '</head>\n<body class="theme-dark">\n'
         '  <div class="toolbar" id="toolbar" style="display:none;">\n'
@@ -232,7 +233,13 @@ def viz_view() -> str:
         '        } else { notice.style.display = "none"; }\n'
         '        document.getElementById("viz-id").textContent = "ID: " + result.id;\n'
         '        document.getElementById("insight-bar").style.display = "none";\n'
-        '        document.getElementById("geo-banner").style.display = result.geo ? "block" : "none";\n'
+        '        if (result.geo) {\n'
+        '          document.getElementById("chart-container").style.display = "none";\n'
+        '          document.getElementById("geo-banner").style.display = "block";\n'
+        '        } else {\n'
+        '          document.getElementById("chart-container").style.display = "block";\n'
+        '          document.getElementById("geo-banner").style.display = "none";\n'
+        '        }\n'
         "      }\n"
         "\n"
         '      if (result.action === "theme_change" && result.figure) {\n'
