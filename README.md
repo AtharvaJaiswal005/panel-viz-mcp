@@ -91,48 +91,27 @@ Then pick your client:
 
 ### Claude Code (CLI) / Claude Desktop (Code tab)
 
-Paste this prompt and let the AI handle the installation:
+Paste this prompt and the AI will handle everything:
 
-> Install the panel-viz-mcp MCP server. Follow these steps exactly:
+> Install the panel-viz-mcp MCP server:
 >
-> Step 1 - Clone:
-> ```
-> git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
-> ```
->
-> Step 2 - Find the real Python (NOT the Windows Store stub). Run `where python` or `which python3` and pick the one under `AppData/Local/Programs/Python` or similar, not `WindowsApps`. Store this path as PYTHON_PATH.
->
-> Step 3 - Install using that Python:
-> ```
-> cd panel-viz-mcp
-> <PYTHON_PATH> -m pip install -e .
-> ```
-> Do NOT use bare `pip` - it may not be on PATH.
->
-> Step 4 - Verify the command exists:
-> ```
-> <PYTHON_PATH> -m panel_viz_mcp.server --help
-> ```
-> Also check if `panel-viz-mcp` script was installed by looking in the Scripts folder next to PYTHON_PATH (e.g. `C:/Users/<user>/AppData/Local/Programs/Python/Python311/Scripts/panel-viz-mcp`).
->
-> Step 5 - Register the MCP server. Try this first:
-> ```
-> claude mcp add panel-viz-mcp -- panel-viz-mcp
-> ```
-> If that fails because the command is not found, use the full path:
-> ```
-> claude mcp add panel-viz-mcp -- <PYTHON_PATH> -m panel_viz_mcp.server
-> ```
->
-> Step 6 - For Claude Desktop, edit the config file at `%APPDATA%\Claude\claude_desktop_config.json` (on Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (on Mac). Add this to the "mcpServers" object:
+> 1. `git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git`
+> 2. Find my real Python path (run `where python` on Windows or `which python3` on Mac/Linux - pick the one NOT under WindowsApps)
+> 3. `cd panel-viz-mcp && <PYTHON_PATH> -m pip install -e .`
+> 4. For Claude Code: run `claude mcp add panel-viz-mcp -- panel-viz-mcp` (if command not found, use `claude mcp add panel-viz-mcp -- <PYTHON_PATH> -m panel_viz_mcp.server`)
+> 5. For Claude Desktop: write the config file directly - on Windows at `%APPDATA%\Claude\claude_desktop_config.json`, on Mac at `~/Library/Application Support/Claude/claude_desktop_config.json`. The file should contain:
 > ```json
-> "panel-viz-mcp": {
->   "command": "panel-viz-mcp"
+> {
+>   "mcpServers": {
+>     "panel-viz-mcp": {
+>       "command": "<PYTHON_PATH>",
+>       "args": ["-m", "panel_viz_mcp.server"]
+>     }
+>   }
 > }
 > ```
-> If `panel-viz-mcp` is not on PATH, use the full script path or use `"command": "<PYTHON_PATH>", "args": ["-m", "panel_viz_mcp.server"]` instead.
->
-> After editing the config, tell the user to fully restart Claude Desktop.
+> Use the actual full Python path you found in step 2. If the file already has other servers, merge into the existing mcpServers object.
+> 6. Tell me to restart Claude Desktop after.
 
 Or do it manually:
 
