@@ -77,18 +77,22 @@ Works with any MCP Apps-compatible client:
 
 ## Quick Start
 
-### Install
+### 1. Clone and install
 
 ```bash
-pip install git+https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+cd panel-viz-mcp
+pip install -e .
 ```
 
 For geographic maps (`points` chart type):
 ```bash
-pip install "panel-viz-mcp[geo] @ git+https://github.com/AtharvaJaiswal005/panel-viz-mcp.git"
+pip install -e ".[geo]"
 ```
 
-### VS Code / Copilot Chat
+### 2. Add to your AI client
+
+#### VS Code / Copilot Chat
 
 Add to `.vscode/mcp.json` (or User Settings > MCP):
 
@@ -96,15 +100,13 @@ Add to `.vscode/mcp.json` (or User Settings > MCP):
 {
   "servers": {
     "panel-viz-mcp": {
-      "command": "python",
-      "args": ["-m", "panel_viz_mcp.server"],
-      "cwd": "/path/to/panel-viz-mcp/src"
+      "command": "panel-viz-mcp"
     }
   }
 }
 ```
 
-### Claude Desktop
+#### Claude Desktop
 
 Go to **Settings > Developer > Edit Config** and add:
 
@@ -112,9 +114,7 @@ Go to **Settings > Developer > Edit Config** and add:
 {
   "mcpServers": {
     "panel-viz-mcp": {
-      "command": "python",
-      "args": ["-m", "panel_viz_mcp.server"],
-      "cwd": "/path/to/panel-viz-mcp/src"
+      "command": "panel-viz-mcp"
     }
   }
 }
@@ -122,15 +122,15 @@ Go to **Settings > Developer > Edit Config** and add:
 
 Save, then fully restart Claude Desktop.
 
-### Claude Code (CLI)
+#### Claude Code (CLI)
 
 ```bash
-claude mcp add panel-viz-mcp -- python -m panel_viz_mcp.server --cwd /path/to/panel-viz-mcp/src
+claude mcp add panel-viz-mcp -- panel-viz-mcp
 ```
 
-### Cursor / Goose / Other MCP Clients
+#### Cursor / Goose / Other MCP Clients
 
-Use the same stdio transport config - command: `python`, args: `["-m", "panel_viz_mcp.server"]`, with `cwd` pointing to the `src/` directory.
+Use stdio transport with command `panel-viz-mcp`.
 
 ## Usage Examples
 
