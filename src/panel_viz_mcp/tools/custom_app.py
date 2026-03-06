@@ -20,6 +20,7 @@ _ALLOWED_MODULES = frozenset({
     "datashader", "colorcet", "cartopy", "numpy", "np", "pandas", "pd",
     "param", "math", "json", "datetime", "functools", "itertools",
     "collections", "io", "textwrap", "pathlib",
+    "scipy", "skimage", "sklearn",
 })
 
 # Explicitly blocked dangerous modules

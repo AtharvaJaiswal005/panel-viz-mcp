@@ -61,15 +61,15 @@ def viz_view() -> str:
         "      border: 1px solid var(--border); border-radius: 4px; padding: 8px;\n"
         "      font-family: monospace; font-size: 11px; resize: vertical;\n"
         "    }\n"
-        "    .geo-banner {\n"
+        "    .complex-banner {\n"
         "      display: none; background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(59,130,246,0.12));\n"
         "      border: 1px solid rgba(99,102,241,0.3); border-radius: 12px; padding: 40px 24px;\n"
         "      margin-top: 8px; text-align: center; min-height: 280px;\n"
-        "      display: none; align-items: center; justify-content: center; flex-direction: column;\n"
+        "      align-items: center; justify-content: center; flex-direction: column;\n"
         "    }\n"
-        "    .geo-banner .geo-icon { font-size: 48px; margin-bottom: 12px; }\n"
-        "    .geo-banner .geo-text { font-size: 16px; color: #a5b4fc; line-height: 1.5; }\n"
-        "    .geo-banner .geo-hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; }\n"
+        "    .complex-banner .cb-icon { font-size: 48px; margin-bottom: 12px; }\n"
+        "    .complex-banner .cb-text { font-size: 16px; color: #a5b4fc; line-height: 1.5; }\n"
+        "    .complex-banner .cb-hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; }\n"
         "  </style>\n"
         '</head>\n<body class="theme-dark">\n'
         '  <div class="toolbar" id="toolbar" style="display:none;">\n'
@@ -80,10 +80,10 @@ def viz_view() -> str:
         "  </div>\n"
         '  <div id="chart-container"><div class="loading"><div class="spinner"></div><span>Preparing visualization...</span></div></div>\n'
         '  <div id="sample-notice" style="display:none;"></div>\n'
-        '  <div class="geo-banner" id="geo-banner">\n'
-        '    <div class="geo-icon">&#127758;</div>\n'
-        '    <div class="geo-text">This is a geographic preview. Click <strong>Open in Panel</strong> above for the full interactive map with tile basemaps.</div>\n'
-        '    <div class="geo-hint">The inline iframe restricts map tiles - the Panel app shows the complete CartoDark map.</div>\n'
+        '  <div class="complex-banner" id="complex-banner">\n'
+        '    <div class="cb-icon" id="cb-icon">&#128202;</div>\n'
+        '    <div class="cb-text" id="cb-text">This visualization is best viewed as a full interactive app.<br>Click <strong>Open in Panel</strong> above for the complete experience.</div>\n'
+        '    <div class="cb-hint" id="cb-hint">Complex charts render with full interactivity in the Panel dashboard.</div>\n'
         '  </div>\n'
         '  <div id="insight-bar"></div>\n'
         '  <div id="viz-id"></div>\n'
@@ -233,12 +233,12 @@ def viz_view() -> str:
         '        } else { notice.style.display = "none"; }\n'
         '        document.getElementById("viz-id").textContent = "ID: " + result.id;\n'
         '        document.getElementById("insight-bar").style.display = "none";\n'
-        '        if (result.geo) {\n'
+        '        if (result.complex) {\n'
         '          document.getElementById("chart-container").style.display = "none";\n'
-        '          document.getElementById("geo-banner").style.display = "block";\n'
+        '          document.getElementById("complex-banner").style.display = "flex";\n'
         '        } else {\n'
         '          document.getElementById("chart-container").style.display = "block";\n'
-        '          document.getElementById("geo-banner").style.display = "none";\n'
+        '          document.getElementById("complex-banner").style.display = "none";\n'
         '        }\n'
         "      }\n"
         "\n"

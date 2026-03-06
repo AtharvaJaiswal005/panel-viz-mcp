@@ -20,6 +20,7 @@ MULTI_URI = "ui://panel-viz-mcp/multi.html"
 CHART_TYPES = [
     "bar", "line", "scatter", "area", "pie", "histogram",
     "box", "violin", "kde", "step", "heatmap", "hexbin", "points",
+    "candlestick",
 ]
 ANNOTATION_TYPES = ["text", "hline", "vline", "band", "arrow"]
 

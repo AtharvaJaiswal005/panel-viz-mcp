@@ -78,6 +78,8 @@ def _build_bokeh_figure(kind: str, df: pd.DataFrame, x: str, y: str,
 
     if kind == "pie":
         fig = _build_pie_chart(df, x, y, title, theme)
+    elif kind == "candlestick":
+        fig = _build_candlestick_chart(df, x, y, title, color, theme)
     else:
         fig = _build_hvplot_chart(kind, df, x, y, title, color)
         _apply_theme(fig, theme)
@@ -275,6 +277,77 @@ def _build_pie_chart(df: pd.DataFrame, names_col: str, values_col: str,
         fig.legend.background_fill_alpha = 0
         fig.legend.border_line_alpha = 0
 
+    return fig
+
+
+def _build_candlestick_chart(df: pd.DataFrame, x: str, y: str,
+                              title: str, color: str | None = None,
+                              theme: str = "dark"):
+    """Build a candlestick (OHLC) chart using raw Bokeh.
+
+    Expects columns: x (date/index), and auto-detects Open/High/Low/Close
+    columns in the data. Falls back to a simple line chart if OHLC not found.
+    """
+    # Auto-detect OHLC columns (case-insensitive)
+    col_map = {c.lower(): c for c in df.columns}
+    ohlc = {k: col_map.get(k) for k in ("open", "high", "low", "close")}
+
+    if not all(ohlc.values()):
+        # Fallback: just plot y as a line
+        fig = bokeh_figure(title=title, height=350, x_axis_type="auto",
+                           tools="pan,wheel_zoom,box_zoom,reset,hover")
+        fig.line(x=range(len(df)), y=df[y].values, line_color="#818cf8", line_width=2)
+        _apply_theme(fig, theme)
+        return fig
+
+    o_col, h_col, l_col, c_col = ohlc["open"], ohlc["high"], ohlc["low"], ohlc["close"]
+
+    df = df.copy()
+    # Create integer index for x-axis
+    df["_idx"] = range(len(df))
+    df["_up"] = df[c_col] >= df[o_col]
+
+    inc = df[df["_up"]]
+    dec = df[~df["_up"]]
+
+    bar_width = 0.6
+
+    fig = bokeh_figure(title=title, height=350,
+                       tools="pan,wheel_zoom,box_zoom,reset,hover")
+
+    # Wicks (high-low lines)
+    fig.segment(x0="_idx", y0=l_col, x1="_idx", y1=h_col, source=inc, color="#4ade80")
+    fig.segment(x0="_idx", y0=l_col, x1="_idx", y1=h_col, source=dec, color="#f87171")
+
+    # Bodies (open-close bars)
+    fig.vbar(x="_idx", width=bar_width, top=c_col, bottom=o_col, source=inc,
+             fill_color="#4ade80", line_color="#4ade80")
+    fig.vbar(x="_idx", width=bar_width, top=o_col, bottom=c_col, source=dec,
+             fill_color="#f87171", line_color="#f87171")
+
+    # X-axis labels
+    if x in df.columns:
+        labels = df[x].astype(str).tolist()
+        # Show every Nth label to avoid overlap
+        step = max(1, len(labels) // 15)
+        overrides = {i: labels[i] for i in range(0, len(labels), step)}
+        fig.xaxis[0].ticker = FixedTicker(ticks=list(overrides.keys()))
+        fig.xaxis[0].major_label_overrides = overrides
+        fig.xaxis[0].major_label_orientation = 0.8
+
+    # Hover
+    for tool in fig.tools:
+        if isinstance(tool, HoverTool):
+            tool.tooltips = [
+                (x, f"@{{{x}}}"),
+                ("Open", f"@{{{o_col}}}{{0,0.[00]}}"),
+                ("High", f"@{{{h_col}}}{{0,0.[00]}}"),
+                ("Low", f"@{{{l_col}}}{{0,0.[00]}}"),
+                ("Close", f"@{{{c_col}}}{{0,0.[00]}}"),
+            ]
+            break
+
+    _apply_theme(fig, theme)
     return fig
 
 

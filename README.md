@@ -4,6 +4,52 @@ Interactive [Panel](https://panel.holoviz.org/) / [HoloViews](https://holoviews.
 
 > Built with [FastMCP](https://github.com/jlowin/fastmcp), [hvPlot](https://hvplot.holoviz.org/), [Bokeh](https://bokeh.org/), and [Panel](https://panel.holoviz.org/).
 
+## Showcase
+
+### Inline Charts in AI Chat
+
+Type a prompt, get an interactive chart rendered directly in the conversation.
+
+![Inline Bar Chart](docs/screenshots/inline-bar.gif)
+
+### Live Streaming
+
+Real-time data simulation with play/pause controls - all rendered inline.
+
+![Streaming Chart](docs/screenshots/streaming.gif)
+
+### Multi-Chart Grid
+
+Side-by-side chart comparison from the same dataset.
+
+![Multi-Chart View](docs/screenshots/multi-chart.gif)
+
+### Geographic Maps
+
+Interactive maps with tile basemaps, launched via "Open in Panel".
+
+![Geographic Map](docs/screenshots/geo-map.gif)
+
+### Candlestick Portfolio Dashboard
+
+Full OHLC candlestick chart with donut pie breakdown, styled Tabulator table with colored buy/sell/hold signals, Number indicators, and crossfiltering sidebar - all generated from a single prompt.
+
+![Candlestick Portfolio Dashboard](docs/screenshots/candlestick-portfolio.png)
+
+### Medical Image Viewer
+
+Real brain MRI data (scikit-image), 2x2 grid with multiple colormaps, slice navigation, brightness/contrast controls - built via `create_panel_app`.
+
+![Medical Image Viewer](docs/screenshots/medical-viewer.png)
+
+### ML Model Evaluator
+
+Interactive ML dashboard with confusion matrix, ROC curve, feature importances, classification report, and a "Retrain Model" button that retrains a RandomForest with new hyperparameters and updates all 4 panels live.
+
+![ML Model Evaluator](docs/screenshots/ml-evaluator.png)
+
+---
+
 ## What is this?
 
 An MCP server that lets AI assistants create, modify, and render interactive visualizations **inline** in the chat conversation. Charts render as live BokehJS figures inside sandboxed iframes - not static images, not external links.
@@ -17,7 +63,7 @@ Works with any MCP Apps-compatible client:
 
 ## Features
 
-### 13 Chart Types
+### 14 Chart Types
 
 | Type | Description | Special Parameters |
 |------|-------------|-------------------|
@@ -34,6 +80,7 @@ Works with any MCP Apps-compatible client:
 | `heatmap` | Categorical heatmap | `color` = value column (C) |
 | `hexbin` | Hexagonal binning | Both `x` and `y` must be numeric |
 | `points` | Geographic scatter map | `x` = longitude, `y` = latitude, requires `geoviews` |
+| `candlestick` | OHLC candlestick chart | Data must have Open, High, Low, Close columns |
 
 ### 15 MCP Tools
 

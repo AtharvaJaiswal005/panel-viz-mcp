@@ -24,12 +24,13 @@ def create_viz(
     """Create an interactive visualization that renders in the conversation.
 
     Args:
-        kind: Chart type - one of: bar, line, scatter, area, pie, histogram, box, violin, kde, step, heatmap, hexbin, points.
+        kind: Chart type - one of: bar, line, scatter, area, pie, histogram, box, violin, kde, step, heatmap, hexbin, points, candlestick.
               box/violin: x is grouping column (categorical), y is numeric.
               kde: only y needed (density estimate of that column).
               heatmap: x and y are categorical axes, color is the value column.
               hexbin: both x and y must be numeric.
               points: geographic scatter map - x is longitude, y is latitude.
+              candlestick: OHLC chart - data must have Open, High, Low, Close columns. x is date/label column, y is Close.
         title: Chart title
         data: Dictionary of column_name -> list of values (e.g. {"region": ["East", "West"], "sales": [100, 200]})
         x: Column name for x-axis (or grouping column for box/violin, longitude for points)
@@ -55,8 +56,8 @@ def create_viz(
         }
 
         result = {"action": "create", "id": viz_id, "figure": spec}
-        if kind == "points":
-            result["geo"] = True
+        if kind in ("points", "candlestick"):
+            result["complex"] = True
         if total_rows > MAX_CHART_ROWS:
             result["sampled"] = True
             result["total_rows"] = total_rows
