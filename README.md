@@ -77,7 +77,7 @@ Works with any MCP Apps-compatible client:
 
 ## Quick Start
 
-First, clone and install (required for all clients):
+### Install
 
 ```bash
 git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
@@ -85,23 +85,11 @@ cd panel-viz-mcp
 pip install -e .
 ```
 
-For geographic maps, also install geo extras: `pip install -e ".[geo]"`
+For geographic maps: `pip install -e ".[geo]"`
 
-Then pick your client:
+### Connect to your client
 
-### VS Code / Copilot Chat (Recommended)
-
-The best experience - interactive charts render directly inside the chat as live iframes.
-
-#### One-Prompt Setup
-
-Open your project folder in VS Code, open **Copilot Chat** (Ctrl+Shift+I), switch to **Agent** mode, and paste this prompt:
-
-> Set up the panel-viz-mcp MCP server for this workspace. Create a .vscode/mcp.json file with the server configured using the command "panel-viz-mcp". Then use the create_viz tool to make a bar chart with Quarter: Q1, Q2, Q3, Q4 and Revenue: 42000, 58000, 71000, 89000. Title: "Quarterly Revenue 2024"
-
-The agent will create the config file, connect the MCP server, and render your first interactive chart - all in one step.
-
-#### Manual Setup
+#### VS Code / Copilot Chat (Recommended)
 
 Create `.vscode/mcp.json` in your project folder:
 
@@ -115,40 +103,17 @@ Create `.vscode/mcp.json` in your project folder:
 }
 ```
 
-Then open Copilot Chat (Ctrl+Shift+I), switch to **Agent** mode, and start prompting.
+Open Copilot Chat (**Ctrl+Shift+I**), switch to **Agent** mode, and you're ready.
 
-### Claude Code (CLI)
-
-#### One-Prompt Setup
-
-Paste this prompt and the agent will handle everything:
-
-> Install the panel-viz-mcp MCP server. Run `git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git`, then find my real Python path (run `where python` on Windows or `which python3` on Mac/Linux - pick the one NOT under WindowsApps), then `cd panel-viz-mcp && <PYTHON_PATH> -m pip install -e .`, then run `claude mcp add panel-viz-mcp -- panel-viz-mcp` (if command not found, use `claude mcp add panel-viz-mcp -- <PYTHON_PATH> -m panel_viz_mcp.server`).
-
-#### Manual Setup
+#### Claude Code
 
 ```bash
 claude mcp add panel-viz-mcp -- panel-viz-mcp
 ```
 
-If the command is not found, use the full Python path:
+#### Claude Desktop
 
-```bash
-claude mcp add panel-viz-mcp -- python -m panel_viz_mcp.server
-```
-
-### Claude Desktop
-
-#### One-Prompt Setup (Code tab)
-
-Open Claude Desktop Code tab and paste this prompt:
-
-> Install the panel-viz-mcp MCP server. Run `git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git`, find my real Python path (`where python` on Windows, `which python3` on Mac/Linux - pick the one NOT under WindowsApps), run `cd panel-viz-mcp && <PYTHON_PATH> -m pip install -e .`, then write the Claude Desktop config file. On Windows it's at `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json` (Microsoft Store) or `%APPDATA%\Claude\claude_desktop_config.json` (direct install). On Mac it's at `~/Library/Application Support/Claude/claude_desktop_config.json`. Add a `mcpServers` entry with command set to `<PYTHON_PATH>` and args `["-m", "panel_viz_mcp.server"]`. If the file already has other servers, merge into the existing mcpServers object. Tell me to restart Claude Desktop after.
-
-#### Manual Setup
-
-1. Open **Settings > Developer > Edit Config**
-2. Add to `claude_desktop_config.json`:
+Open **Settings > Developer > Edit Config** and add:
 
 ```json
 {
@@ -160,11 +125,48 @@ Open Claude Desktop Code tab and paste this prompt:
 }
 ```
 
-3. Save and **fully restart** Claude Desktop
+Save and **restart** Claude Desktop.
 
-### Cursor / Goose / Other MCP Clients
+#### Cursor / Goose / Other Clients
 
 Use stdio transport with command `panel-viz-mcp`.
+
+---
+
+### Let the agent install it for you
+
+If you prefer, paste one of these prompts and the AI agent will handle the full setup.
+
+**VS Code Copilot Chat** (Ctrl+Shift+I, Agent mode):
+
+```
+I want to use the panel-viz-mcp MCP server (https://github.com/AtharvaJaiswal005/panel-viz-mcp).
+1. Clone the repo: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+2. Install it: cd panel-viz-mcp && pip install -e .
+3. Create .vscode/mcp.json with the server command set to "panel-viz-mcp"
+4. Then create a bar chart using create_viz with Quarter: Q1, Q2, Q3, Q4 and Revenue: 42000, 58000, 71000, 89000
+```
+
+**Claude Code**:
+
+```
+I want to use the panel-viz-mcp MCP server (https://github.com/AtharvaJaiswal005/panel-viz-mcp).
+1. Clone the repo: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+2. Find my Python path (run "where python" on Windows or "which python3" on Mac/Linux)
+3. Install it: cd panel-viz-mcp && pip install -e .
+4. Register it: claude mcp add panel-viz-mcp -- panel-viz-mcp
+```
+
+**Claude Desktop** (Code tab):
+
+```
+I want to use the panel-viz-mcp MCP server (https://github.com/AtharvaJaiswal005/panel-viz-mcp).
+1. Clone the repo: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+2. Find my Python path (run "where python" on Windows or "which python3" on Mac/Linux)
+3. Install it: cd panel-viz-mcp && pip install -e .
+4. Add it to my Claude Desktop config (claude_desktop_config.json) with the Python path as command and ["-m", "panel_viz_mcp.server"] as args
+5. Tell me to restart Claude Desktop when done
+```
 
 ## Usage Examples
 
