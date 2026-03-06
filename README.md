@@ -80,12 +80,12 @@ Works with any MCP Apps-compatible client:
 ### Install
 
 ```bash
-pip install panel-viz-mcp
+pip install git+https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
 ```
 
 For geographic maps (`points` chart type):
 ```bash
-pip install panel-viz-mcp[geo]
+pip install "panel-viz-mcp[geo] @ git+https://github.com/AtharvaJaiswal005/panel-viz-mcp.git"
 ```
 
 ### VS Code / Copilot Chat
