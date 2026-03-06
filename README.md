@@ -89,23 +89,17 @@ For geographic maps, also install geo extras: `pip install -e ".[geo]"`
 
 Then pick your client:
 
-### Claude Code (CLI)
+### Claude Code (CLI) / Claude Desktop (Code tab)
 
-Just paste this prompt into Claude Code and it will handle everything:
+Paste this prompt and let the AI handle the installation:
 
-> Install panel-viz-mcp: clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git, run `pip install -e .`, then run `claude mcp add panel-viz-mcp -- panel-viz-mcp`
-
-Or do it manually:
-
-```bash
-claude mcp add panel-viz-mcp -- panel-viz-mcp
-```
-
-### Claude Desktop
-
-Switch to the **Code** tab and paste this prompt:
-
-> Install panel-viz-mcp: clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git, run `pip install -e .`, then add the MCP server to my Claude Desktop config with command `panel-viz-mcp`
+> Install the panel-viz-mcp MCP server for me. Here are the exact steps:
+> 1. Clone the repo: `git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git`
+> 2. Install it with pip using the full Python path (on Windows use `python -m pip install -e .` inside the cloned directory, NOT bare `pip`)
+> 3. After install, register the MCP server by running: `claude mcp add panel-viz-mcp -- panel-viz-mcp`
+> 4. If `panel-viz-mcp` command is not found, use the full path instead: `claude mcp add panel-viz-mcp -- python -m panel_viz_mcp.server` and set the working directory to the `src/` folder inside the cloned repo
+>
+> For Claude Desktop config, edit `claude_desktop_config.json` at `%APPDATA%\Claude\claude_desktop_config.json` and add panel-viz-mcp as an MCP server. Use the full Python path if needed (e.g. `C:/Users/<user>/AppData/Local/Programs/Python/Python311/python.exe`).
 
 Or do it manually:
 
