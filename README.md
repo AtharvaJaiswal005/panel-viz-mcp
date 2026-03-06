@@ -91,11 +91,15 @@ Then pick your client:
 
 ### Claude Code (CLI)
 
+Just paste this prompt into Claude Code and it will handle everything:
+
+> Install panel-viz-mcp: clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git, run `pip install -e .`, then run `claude mcp add panel-viz-mcp -- panel-viz-mcp`
+
+Or do it manually:
+
 ```bash
 claude mcp add panel-viz-mcp -- panel-viz-mcp
 ```
-
-That's it. Start a conversation and ask Claude to create a chart.
 
 ### Claude Desktop
 
