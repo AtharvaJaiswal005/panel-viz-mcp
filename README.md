@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/screenshots/panel-logo.png" alt="Panel" width="300">
+</p>
+
 # panel-viz-mcp
 
 Interactive [Panel](https://panel.holoviz.org/) / [HoloViews](https://holoviews.org/) visualizations rendered directly inside AI chat UIs via the [MCP Apps Standard](https://github.com/modelcontextprotocol/ext-apps).
