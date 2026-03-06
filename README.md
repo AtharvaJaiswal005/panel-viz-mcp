@@ -77,7 +77,7 @@ Works with any MCP Apps-compatible client:
 
 ## Quick Start
 
-### 1. Clone and install
+First, clone and install (required for all clients):
 
 ```bash
 git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
@@ -85,30 +85,22 @@ cd panel-viz-mcp
 pip install -e .
 ```
 
-For geographic maps (`points` chart type):
+For geographic maps, also install geo extras: `pip install -e ".[geo]"`
+
+Then pick your client:
+
+### Claude Code (CLI)
+
 ```bash
-pip install -e ".[geo]"
+claude mcp add panel-viz-mcp -- panel-viz-mcp
 ```
 
-### 2. Add to your AI client
+That's it. Start a conversation and ask Claude to create a chart.
 
-#### VS Code / Copilot Chat
+### Claude Desktop
 
-Add to `.vscode/mcp.json` (or User Settings > MCP):
-
-```json
-{
-  "servers": {
-    "panel-viz-mcp": {
-      "command": "panel-viz-mcp"
-    }
-  }
-}
-```
-
-#### Claude Desktop
-
-Go to **Settings > Developer > Edit Config** and add:
+1. Open **Settings > Developer > Edit Config**
+2. Paste this into `claude_desktop_config.json`:
 
 ```json
 {
@@ -120,15 +112,23 @@ Go to **Settings > Developer > Edit Config** and add:
 }
 ```
 
-Save, then fully restart Claude Desktop.
+3. Save the file and **fully restart** Claude Desktop
 
-#### Claude Code (CLI)
+### VS Code / Copilot Chat
 
-```bash
-claude mcp add panel-viz-mcp -- panel-viz-mcp
+Add to `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "panel-viz-mcp": {
+      "command": "panel-viz-mcp"
+    }
+  }
+}
 ```
 
-#### Cursor / Goose / Other MCP Clients
+### Cursor / Goose / Other MCP Clients
 
 Use stdio transport with command `panel-viz-mcp`.
 
