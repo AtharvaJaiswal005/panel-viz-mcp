@@ -35,13 +35,13 @@ Works with any MCP Apps-compatible client:
 | `hexbin` | Hexagonal binning | Both `x` and `y` must be numeric |
 | `points` | Geographic scatter map | `x` = longitude, `y` = latitude, requires `geoviews` |
 
-### 14 MCP Tools
+### 15 MCP Tools
 
 | # | Tool | Description |
 |---|------|-------------|
 | 1 | `create_viz` | Create a chart (any of 13 types) |
 | 2 | `update_viz` | Modify an existing chart (change type, data, axes, title) |
-| 3 | `load_data` | Load a CSV/Parquet file and visualize it |
+| 3 | `load_data` | Load CSV/Parquet/JSON/Excel/Feather/Zarr and visualize |
 | 4 | `handle_click` | Process click events from charts (bidirectional) |
 | 5 | `list_vizs` | List all active visualizations |
 | 6 | `create_dashboard` | Dashboard with chart + stats + table + filter widgets |
@@ -53,6 +53,7 @@ Works with any MCP Apps-compatible client:
 | 12 | `export_data` | Export data as CSV or JSON |
 | 13 | `launch_panel` | Open a full interactive Panel app in the browser |
 | 14 | `stop_panel` | Stop a running Panel server |
+| 15 | `create_panel_app` | Launch a custom Panel app from LLM-written Python code |
 
 ### 4 Interactive UI Resources (MCP Apps)
 
@@ -203,25 +204,47 @@ pip install -e ".[dev]"
 ### Run tests
 
 ```bash
-python test_tools.py
+pytest tests/ -v
 ```
 
-All 24 tests cover the 14 tools and 13 chart types.
+51 tests cover all 15 tools, 13 chart types, edge cases, code generation, and security sandboxing.
 
 ### Project structure
 
 ```
 panel-viz-mcp/
   src/panel_viz_mcp/
-    __init__.py
-    server.py          # MCP server (~2100 lines) - tools, resources, chart builders
+    __init__.py          # Package re-export
+    app.py               # FastMCP instance + in-memory stores
+    server.py            # Thin entry point with re-exports
+    constants.py         # Chart types, URIs, limits, SDK version
+    cdn.py               # BokehJS CDN script tags
+    themes.py            # Theme colors + CSS variables
+    chart_builders.py    # Bokeh figure construction + annotations
+    code_generators/     # Panel app code generators
+      standard.py        # Single-chart Panel apps
+      geo.py             # DeckGL geographic apps
+      multi.py           # Multi-chart grid apps
+    tools/               # 15 MCP tools
+      viz.py             # create, update, load, click, list
+      dashboard.py       # create_dashboard, apply_filter, set_theme
+      stream.py          # stream_data
+      multi.py           # create_multi_chart
+      annotation.py      # annotate_viz
+      export.py          # export_data
+      panel_launch.py    # launch_panel, stop_panel
+      custom_app.py      # create_panel_app
+    resources/           # 4 HTML resources (MCP Apps)
+      viz_html.py        # Single chart viewer
+      dashboard_html.py  # Dashboard with filters
+      stream_html.py     # Live streaming chart
+      multi_html.py      # Multi-chart grid
   tests/
-    __init__.py
+    test_tools.py        # 51 pytest tests
   examples/
-    sample_data.csv    # Sample CSV for load_data tool
-  test_tools.py        # 24 automated tests via FastMCP Client
+    sample_data.csv      # Sample CSV for load_data tool
   pyproject.toml
-  LICENSE              # MIT
+  LICENSE                # MIT
   README.md
 ```
 
@@ -237,6 +260,7 @@ panel-viz-mcp/
 ## Related Projects
 
 - **[holoviz-mcp](https://github.com/MarcSkovMadsen/holoviz-mcp)** by Marc Skov Madsen - MCP server for HoloViz documentation and code execution
+- **[panel-live](https://panel-extensions.github.io/panel-live/)** - Run Panel code in the browser with MCP support
 - **[Panel #8396](https://github.com/holoviz/panel/issues/8396)** - Tracking issue for MCP Apps Standard support in Panel core
 
 ## License
