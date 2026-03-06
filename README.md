@@ -140,32 +140,33 @@ If you prefer, paste one of these prompts and the AI agent will handle the full 
 **VS Code Copilot Chat** (Ctrl+Shift+I, Agent mode):
 
 ```
-I want to use the panel-viz-mcp MCP server (https://github.com/AtharvaJaiswal005/panel-viz-mcp).
-1. Clone the repo: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
-2. Install it: cd panel-viz-mcp && pip install -e .
+Install the panel-viz-mcp MCP server for this workspace.
+1. Clone: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+2. Install: cd panel-viz-mcp && pip install -e .
 3. Create .vscode/mcp.json with the server command set to "panel-viz-mcp"
-4. Then create a bar chart using create_viz with Quarter: Q1, Q2, Q3, Q4 and Revenue: 42000, 58000, 71000, 89000
+4. Confirm the server is connected.
 ```
 
 **Claude Code**:
 
 ```
-I want to use the panel-viz-mcp MCP server (https://github.com/AtharvaJaiswal005/panel-viz-mcp).
-1. Clone the repo: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+Install the panel-viz-mcp MCP server.
+1. Clone: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
 2. Find my Python path (run "where python" on Windows or "which python3" on Mac/Linux)
-3. Install it: cd panel-viz-mcp && pip install -e .
-4. Register it: claude mcp add panel-viz-mcp -- panel-viz-mcp
+3. Install: cd panel-viz-mcp && pip install -e .
+4. Register: claude mcp add panel-viz-mcp -- panel-viz-mcp
+5. Confirm the server is registered.
 ```
 
 **Claude Desktop** (Code tab):
 
 ```
-I want to use the panel-viz-mcp MCP server (https://github.com/AtharvaJaiswal005/panel-viz-mcp).
-1. Clone the repo: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+Install the panel-viz-mcp MCP server.
+1. Clone: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
 2. Find my Python path (run "where python" on Windows or "which python3" on Mac/Linux)
-3. Install it: cd panel-viz-mcp && pip install -e .
-4. Add it to my Claude Desktop config (claude_desktop_config.json) with the Python path as command and ["-m", "panel_viz_mcp.server"] as args
-5. Tell me to restart Claude Desktop when done
+3. Install: cd panel-viz-mcp && pip install -e .
+4. Add to claude_desktop_config.json with the Python path as command and ["-m", "panel_viz_mcp.server"] as args
+5. Tell me to restart Claude Desktop when done.
 ```
 
 ## Usage Examples
