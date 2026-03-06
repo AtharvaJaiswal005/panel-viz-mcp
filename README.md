@@ -103,6 +103,12 @@ claude mcp add panel-viz-mcp -- panel-viz-mcp
 
 ### Claude Desktop
 
+Switch to the **Code** tab and paste this prompt:
+
+> Install panel-viz-mcp: clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git, run `pip install -e .`, then add the MCP server to my Claude Desktop config with command `panel-viz-mcp`
+
+Or do it manually:
+
 1. Open **Settings > Developer > Edit Config**
 2. Paste this into `claude_desktop_config.json`:
 
