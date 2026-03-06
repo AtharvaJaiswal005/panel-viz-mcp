@@ -183,8 +183,8 @@ def _build_hvplot_chart(kind: str, df: pd.DataFrame, x: str, y: str,
         plot = df.hvplot.hexbin(**kwargs)
 
     elif kind == "points":
-        # MCP Apps iframe blocks tile images via CSP, so render as a clean
-        # scatter plot with proper axis labels. Full geo tiles work in "Open in Panel".
+        # MCP Apps iframe blocks tile images via CSP.
+        # Show a preview scatter with a prominent message to use "Open in Panel" for the full map.
         kwargs = {
             **base, "x": x, "y": y, "s": 80,
             "xlabel": "Longitude", "ylabel": "Latitude",

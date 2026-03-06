@@ -55,6 +55,8 @@ def create_viz(
         }
 
         result = {"action": "create", "id": viz_id, "figure": spec}
+        if kind == "points":
+            result["geo"] = True
         if total_rows > MAX_CHART_ROWS:
             result["sampled"] = True
             result["total_rows"] = total_rows

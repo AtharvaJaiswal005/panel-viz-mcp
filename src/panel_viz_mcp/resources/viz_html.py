@@ -61,6 +61,14 @@ def viz_view() -> str:
         "      border: 1px solid var(--border); border-radius: 4px; padding: 8px;\n"
         "      font-family: monospace; font-size: 11px; resize: vertical;\n"
         "    }\n"
+        "    .geo-banner {\n"
+        "      display: none; background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(59,130,246,0.15));\n"
+        "      border: 1px solid rgba(99,102,241,0.3); border-radius: 8px; padding: 12px 16px;\n"
+        "      margin-top: 8px; text-align: center;\n"
+        "    }\n"
+        "    .geo-banner .geo-icon { font-size: 24px; margin-bottom: 4px; }\n"
+        "    .geo-banner .geo-text { font-size: 13px; color: #a5b4fc; }\n"
+        "    .geo-banner .geo-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }\n"
         "  </style>\n"
         '</head>\n<body class="theme-dark">\n'
         '  <div class="toolbar" id="toolbar" style="display:none;">\n'
@@ -71,6 +79,11 @@ def viz_view() -> str:
         "  </div>\n"
         '  <div id="chart-container"><div class="loading"><div class="spinner"></div><span>Preparing visualization...</span></div></div>\n'
         '  <div id="sample-notice" style="display:none;"></div>\n'
+        '  <div class="geo-banner" id="geo-banner">\n'
+        '    <div class="geo-icon">&#127758;</div>\n'
+        '    <div class="geo-text">This is a geographic preview. Click <strong>Open in Panel</strong> above for the full interactive map with tile basemaps.</div>\n'
+        '    <div class="geo-hint">The inline iframe restricts map tiles - the Panel app shows the complete CartoDark map.</div>\n'
+        '  </div>\n'
         '  <div id="insight-bar"></div>\n'
         '  <div id="viz-id"></div>\n'
         '  <div id="status">panel-viz-mcp ready (HoloViz + BokehJS)</div>\n'
@@ -219,6 +232,7 @@ def viz_view() -> str:
         '        } else { notice.style.display = "none"; }\n'
         '        document.getElementById("viz-id").textContent = "ID: " + result.id;\n'
         '        document.getElementById("insight-bar").style.display = "none";\n'
+        '        document.getElementById("geo-banner").style.display = result.geo ? "block" : "none";\n'
         "      }\n"
         "\n"
         '      if (result.action === "theme_change" && result.figure) {\n'
