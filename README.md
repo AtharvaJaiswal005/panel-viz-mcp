@@ -216,37 +216,20 @@ Install the panel-viz-mcp MCP server.
 5. Tell me to restart Claude Desktop when done.
 ```
 
-## Usage Examples
+## Try These Prompts
 
-### Basic bar chart
+Just paste any of these into your AI chat and watch the magic happen.
 
-> "Create a bar chart of sales by region"
+| Prompt | What you get |
+|--------|-------------|
+| `Create a bar chart showing quarterly revenue: Q1: 42000, Q2: 58000, Q3: 71000, Q4: 89000` | Interactive bar chart inline with hover tooltips and click insights |
+| `Create a dashboard of this sales data with filters: Region, Product, Sales...` | Full dashboard with chart + stats + table + working filter sidebar |
+| `Create a live streaming stock price chart starting at $150` | Real-time updating chart with play/pause/reset controls |
+| `Show me a bar chart and scatter plot of this data side by side` | Multi-chart grid layout from the same dataset |
+| `Create a geographic points map of India's major cities...` | Geographic map with tile basemaps (opens in Panel) |
+| `Create a candlestick chart for RELIANCE stock with this OHLC data...` | Candlestick chart with green/red candles (opens in Panel) |
 
-The AI calls `create_viz` with your data, and an interactive BokehJS chart appears inline in the chat.
-
-### Dashboard with filters
-
-> "Create a dashboard from this CSV file with filters for category and quarter"
-
-Creates a full dashboard with chart, summary statistics (count, mean, min, max), data table, and a filter sidebar. Changing a filter updates everything in real-time via server round-trips.
-
-### Geographic map
-
-> "Plot these cities on a map: NYC (40.7, -73.9), LA (34.1, -118.2), Chicago (41.9, -87.6)"
-
-Creates a geographic scatter plot with CartoDark tile basemaps (requires `geoviews`).
-
-### Multi-chart view
-
-> "Show me a bar chart and a line chart of the same data side by side"
-
-Creates a 2-chart grid layout from the same dataset.
-
-### Streaming
-
-> "Create a live stock price chart starting at $100"
-
-Creates a streaming chart that simulates real-time data with play/pause/reset controls.
+For complex dashboards, use `create_panel_app` with detailed instructions - see the full [Demo Script](demos/DEMO_SCRIPT.md) for copy-paste prompts that generate portfolio dashboards, medical image viewers, and ML model evaluators.
 
 ### Open in Panel
 
