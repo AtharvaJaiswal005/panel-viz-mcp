@@ -93,7 +93,15 @@ Then pick your client:
 
 The best experience - interactive charts render directly inside the chat as live iframes.
 
-**Step 1:** Create `.vscode/mcp.json` in your project folder:
+**Step 1:** Open your project folder in VS Code and open **Copilot Chat** (Ctrl+Shift+I)
+
+**Step 2:** Switch to **Agent** mode (dropdown at the top of the chat panel)
+
+**Step 3:** Paste this prompt and Copilot will set everything up and create your first chart:
+
+> Set up the panel-viz-mcp MCP server for this workspace. Create a .vscode/mcp.json file with the server configured using the command "panel-viz-mcp". Then use the create_viz tool to make a bar chart with Quarter: Q1, Q2, Q3, Q4 and Revenue: 42000, 58000, 71000, 89000. Title: "Quarterly Revenue 2024"
+
+Or set it up manually - create `.vscode/mcp.json` in your project folder:
 
 ```json
 {
@@ -104,16 +112,6 @@ The best experience - interactive charts render directly inside the chat as live
   }
 }
 ```
-
-**Step 2:** Open the folder in VS Code, then open **Copilot Chat** (Ctrl+Shift+I)
-
-**Step 3:** Switch to **Agent** mode (dropdown at the top of the chat panel)
-
-**Step 4:** You should see a tools icon showing panel-viz-mcp is connected. Try:
-
-> Use the create_viz tool to make a bar chart with Quarter: Q1, Q2, Q3, Q4 and Revenue: 42000, 58000, 71000, 89000
-
-An interactive BokehJS chart will render inline in the chat.
 
 ### Claude Code (CLI)
 
