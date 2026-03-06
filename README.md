@@ -9,10 +9,10 @@ Interactive [Panel](https://panel.holoviz.org/) / [HoloViews](https://holoviews.
 An MCP server that lets AI assistants create, modify, and render interactive visualizations **inline** in the chat conversation. Charts render as live BokehJS figures inside sandboxed iframes - not static images, not external links.
 
 Works with any MCP Apps-compatible client:
-- **VS Code Copilot Chat**
+- **VS Code Copilot Chat** (recommended - best inline iframe rendering)
 - **Claude Desktop / Claude Code**
-- **ChatGPT** (Business/Enterprise/Edu)
 - **Cursor**
+- **ChatGPT** (Business/Enterprise/Edu)
 - **Goose**
 
 ## Features
@@ -89,34 +89,48 @@ For geographic maps, also install geo extras: `pip install -e ".[geo]"`
 
 Then pick your client:
 
-### Claude Code (CLI) / Claude Desktop (Code tab)
+### VS Code / Copilot Chat (Recommended)
 
-Paste this prompt and the AI will handle everything:
+The best experience - interactive charts render directly inside the chat as live iframes.
 
-> Install the panel-viz-mcp MCP server:
->
-> 1. `git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git`
-> 2. Find my real Python path (run `where python` on Windows or `which python3` on Mac/Linux - pick the one NOT under WindowsApps)
-> 3. `cd panel-viz-mcp && <PYTHON_PATH> -m pip install -e .`
-> 4. For Claude Code: run `claude mcp add panel-viz-mcp -- panel-viz-mcp` (if command not found, use `claude mcp add panel-viz-mcp -- <PYTHON_PATH> -m panel_viz_mcp.server`)
-> 5. For Claude Desktop: write the config file directly - on Windows at `%APPDATA%\Claude\claude_desktop_config.json`, on Mac at `~/Library/Application Support/Claude/claude_desktop_config.json`. The file should contain:
-> ```json
-> {
->   "mcpServers": {
->     "panel-viz-mcp": {
->       "command": "<PYTHON_PATH>",
->       "args": ["-m", "panel_viz_mcp.server"]
->     }
->   }
-> }
-> ```
-> Use the actual full Python path you found in step 2. If the file already has other servers, merge into the existing mcpServers object.
-> 6. Tell me to restart Claude Desktop after.
+**Step 1:** Create `.vscode/mcp.json` in your project folder:
 
-Or do it manually:
+```json
+{
+  "servers": {
+    "panel-viz-mcp": {
+      "command": "panel-viz-mcp"
+    }
+  }
+}
+```
+
+**Step 2:** Open the folder in VS Code, then open **Copilot Chat** (Ctrl+Shift+I)
+
+**Step 3:** Switch to **Agent** mode (dropdown at the top of the chat panel)
+
+**Step 4:** You should see a tools icon showing panel-viz-mcp is connected. Try:
+
+> Use the create_viz tool to make a bar chart with Quarter: Q1, Q2, Q3, Q4 and Revenue: 42000, 58000, 71000, 89000
+
+An interactive BokehJS chart will render inline in the chat.
+
+### Claude Code (CLI)
+
+```bash
+claude mcp add panel-viz-mcp -- panel-viz-mcp
+```
+
+If the command is not found, use the full Python path:
+
+```bash
+claude mcp add panel-viz-mcp -- python -m panel_viz_mcp.server
+```
+
+### Claude Desktop
 
 1. Open **Settings > Developer > Edit Config**
-2. Paste this into `claude_desktop_config.json`:
+2. Add to `claude_desktop_config.json`:
 
 ```json
 {
@@ -128,21 +142,7 @@ Or do it manually:
 }
 ```
 
-3. Save the file and **fully restart** Claude Desktop
-
-### VS Code / Copilot Chat
-
-Add to `.vscode/mcp.json`:
-
-```json
-{
-  "servers": {
-    "panel-viz-mcp": {
-      "command": "panel-viz-mcp"
-    }
-  }
-}
-```
+3. Save and **fully restart** Claude Desktop
 
 ### Cursor / Goose / Other MCP Clients
 
