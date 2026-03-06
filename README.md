@@ -90,7 +90,7 @@ Works with any MCP Apps-compatible client:
 
 | # | Tool | Description |
 |---|------|-------------|
-| 1 | `create_viz` | Create a chart (any of 13 types) |
+| 1 | `create_viz` | Create a chart (any of 14 types) |
 | 2 | `update_viz` | Modify an existing chart (change type, data, axes, title) |
 | 3 | `load_data` | Load CSV/Parquet/JSON/Excel/Feather/Zarr and visualize |
 | 4 | `handle_click` | Process click events from charts (bidirectional) |
@@ -235,9 +235,9 @@ Just paste any of these into your AI chat and watch the magic happen.
 | `Create a geographic points map of India's major cities...` | Geographic map with tile basemaps (opens in Panel) |
 | `Create a candlestick chart for RELIANCE stock with this OHLC data...` | Candlestick chart with green/red candles (opens in Panel) |
 
-For complex dashboards, use `create_panel_app` with detailed instructions - see the full [Demo Script](demos/DEMO_SCRIPT.md) for copy-paste prompts that generate portfolio dashboards, medical image viewers, and ML model evaluators.
+> **Want more?** The **[Demo Script](demos/DEMO_SCRIPT.md)** has 9 ready-to-use prompts with full data included - from simple bar charts to candlestick portfolio dashboards, medical image viewers, and ML model evaluators. Just copy, paste, and run.
 
-### Open in Panel
+## Open in Panel
 
 Click the **"Open in Panel"** button on any inline chart to launch a full interactive Panel app in your browser with:
 - Chart inspector (change chart type, axes, colors, title live)
@@ -324,8 +324,13 @@ panel-viz-mcp/
       multi_html.py      # Multi-chart grid
   tests/
     test_tools.py        # 51 pytest tests
+  demos/
+    DEMO_SCRIPT.md       # 9 copy-paste demo prompts
+    ml_dashboard.py      # Standalone ML dashboard example
   examples/
     sample_data.csv      # Sample CSV for load_data tool
+  docs/
+    screenshots/         # GIFs and screenshots for README
   pyproject.toml
   LICENSE                # MIT
   README.md
