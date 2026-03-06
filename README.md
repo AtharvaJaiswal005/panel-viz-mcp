@@ -2,11 +2,21 @@
   <img src="docs/screenshots/panel-logo.png" alt="Panel" width="300">
 </p>
 
-# panel-viz-mcp
+<h1 align="center">panel-viz-mcp</h1>
 
-Interactive [Panel](https://panel.holoviz.org/) / [HoloViews](https://holoviews.org/) visualizations rendered directly inside AI chat UIs via the [MCP Apps Standard](https://github.com/modelcontextprotocol/ext-apps).
+<p align="center">
+  Interactive <a href="https://panel.holoviz.org/">Panel</a> / <a href="https://holoviews.org/">HoloViews</a> visualizations rendered directly inside AI chat UIs via the <a href="https://github.com/modelcontextprotocol/ext-apps">MCP Apps Standard</a>.
+</p>
 
-> Built with [FastMCP](https://github.com/jlowin/fastmcp), [hvPlot](https://hvplot.holoviz.org/), [Bokeh](https://bokeh.org/), and [Panel](https://panel.holoviz.org/).
+<p align="center">
+  Built with <a href="https://github.com/jlowin/fastmcp">FastMCP</a> &middot; <a href="https://hvplot.holoviz.org/">hvPlot</a> &middot; <a href="https://bokeh.org/">Bokeh</a> &middot; <a href="https://panel.holoviz.org/">Panel</a>
+</p>
+
+<p align="center">
+  <strong>14 chart types</strong> &middot; <strong>15 MCP tools</strong> &middot; <strong>4 interactive UI resources</strong> &middot; <strong>bidirectional communication</strong>
+</p>
+
+---
 
 ## Showcase
 
@@ -54,6 +64,10 @@ Interactive ML dashboard with confusion matrix, ROC curve, feature importances, 
 
 ---
 
+> **[9 Demo Prompts](demos/DEMO_SCRIPT.md)** - Ready-to-use prompts with full data included. From simple bar charts to candlestick portfolio dashboards, medical image viewers, and ML model evaluators. Just copy, paste, and run.
+
+---
+
 ## What is this?
 
 An MCP server that lets AI assistants create, modify, and render interactive visualizations **inline** in the chat conversation. Charts render as live BokehJS figures inside sandboxed iframes - not static images, not external links.
@@ -64,6 +78,129 @@ Works with any MCP Apps-compatible client:
 - **Cursor**
 - **ChatGPT** (Business/Enterprise/Edu)
 - **Goose**
+
+## Quick Start
+
+### Install
+
+```bash
+git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+cd panel-viz-mcp
+pip install -e .
+```
+
+For geographic maps: `pip install -e ".[geo]"`
+
+### Connect to your client
+
+<details>
+<summary><strong>VS Code / Copilot Chat (Recommended)</strong></summary>
+
+Create `.vscode/mcp.json` in your project folder:
+
+```json
+{
+  "servers": {
+    "panel-viz-mcp": {
+      "command": "panel-viz-mcp"
+    }
+  }
+}
+```
+
+Open Copilot Chat (**Ctrl+Shift+I**), switch to **Agent** mode, and you're ready.
+</details>
+
+<details>
+<summary><strong>Claude Code</strong></summary>
+
+```bash
+claude mcp add panel-viz-mcp -- panel-viz-mcp
+```
+</details>
+
+<details>
+<summary><strong>Claude Desktop</strong></summary>
+
+Open **Settings > Developer > Edit Config** and add:
+
+```json
+{
+  "mcpServers": {
+    "panel-viz-mcp": {
+      "command": "panel-viz-mcp"
+    }
+  }
+}
+```
+
+Save and **restart** Claude Desktop.
+</details>
+
+<details>
+<summary><strong>Cursor / Goose / Other Clients</strong></summary>
+
+Use stdio transport with command `panel-viz-mcp`.
+</details>
+
+### Or let the agent install it for you
+
+Paste one prompt and the AI agent handles everything - clone, install, configure, verify.
+
+![Auto Install](docs/screenshots/auto-install.gif)
+
+<details>
+<summary><strong>VS Code Copilot Chat prompt</strong></summary>
+
+```
+Install the panel-viz-mcp MCP server for this workspace.
+1. Clone: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+2. Install: cd panel-viz-mcp && pip install -e .
+3. Create .vscode/mcp.json with the server command set to "panel-viz-mcp"
+4. Confirm the server is connected.
+```
+</details>
+
+<details>
+<summary><strong>Claude Code prompt</strong></summary>
+
+```
+Install the panel-viz-mcp MCP server.
+1. Clone: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+2. Find my Python path (run "where python" on Windows or "which python3" on Mac/Linux)
+3. Install: cd panel-viz-mcp && pip install -e .
+4. Register: claude mcp add panel-viz-mcp -- panel-viz-mcp
+5. Confirm the server is registered.
+```
+</details>
+
+<details>
+<summary><strong>Claude Desktop prompt</strong></summary>
+
+```
+Install the panel-viz-mcp MCP server.
+1. Clone: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
+2. Find my Python path (run "where python" on Windows or "which python3" on Mac/Linux)
+3. Install: cd panel-viz-mcp && pip install -e .
+4. Add to claude_desktop_config.json with the Python path as command and ["-m", "panel_viz_mcp.server"] as args
+5. Tell me to restart Claude Desktop when done.
+```
+</details>
+
+## Try These Prompts
+
+Just paste any of these into your AI chat.
+
+| Prompt | What you get |
+|--------|-------------|
+| `Create a bar chart showing quarterly revenue: Q1: 42000, Q2: 58000, Q3: 71000, Q4: 89000` | Interactive bar chart inline with hover tooltips and click insights |
+| `Create a dashboard of this sales data with filters: Region, Product, Sales...` | Full dashboard with chart + stats + table + working filter sidebar |
+| `Create a live streaming stock price chart starting at $150` | Real-time updating chart with play/pause/reset controls |
+| `Show me a bar chart and scatter plot of this data side by side` | Multi-chart grid layout from the same dataset |
+| `Create a geographic points map of India's major cities...` | Geographic map with tile basemaps (opens in Panel) |
+| `Create a candlestick chart for RELIANCE stock with this OHLC data...` | Candlestick chart with green/red candles (opens in Panel) |
+
+> **[See all 9 demo prompts with full data](demos/DEMO_SCRIPT.md)** - includes portfolio dashboards, medical image viewers, and ML model evaluators.
 
 ## Features
 
@@ -126,126 +263,6 @@ Works with any MCP Apps-compatible client:
 - **Rich Panel apps** - generated apps include FloatPanel chart inspector, Tabulator data table, Number indicators, crossfiltering sidebar, FastListTemplate dark theme
 - **Save PNG / Export CSV** - toolbar buttons on every chart
 
-## Quick Start
-
-### Install
-
-```bash
-git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
-cd panel-viz-mcp
-pip install -e .
-```
-
-For geographic maps: `pip install -e ".[geo]"`
-
-### Connect to your client
-
-#### VS Code / Copilot Chat (Recommended)
-
-Create `.vscode/mcp.json` in your project folder:
-
-```json
-{
-  "servers": {
-    "panel-viz-mcp": {
-      "command": "panel-viz-mcp"
-    }
-  }
-}
-```
-
-Open Copilot Chat (**Ctrl+Shift+I**), switch to **Agent** mode, and you're ready.
-
-#### Claude Code
-
-```bash
-claude mcp add panel-viz-mcp -- panel-viz-mcp
-```
-
-#### Claude Desktop
-
-Open **Settings > Developer > Edit Config** and add:
-
-```json
-{
-  "mcpServers": {
-    "panel-viz-mcp": {
-      "command": "panel-viz-mcp"
-    }
-  }
-}
-```
-
-Save and **restart** Claude Desktop.
-
-#### Cursor / Goose / Other Clients
-
-Use stdio transport with command `panel-viz-mcp`.
-
----
-
-### Let the agent install it for you
-
-Paste one prompt and the AI agent handles everything - clone, install, configure, verify.
-
-![Auto Install](docs/screenshots/auto-install.gif)
-
-**VS Code Copilot Chat** (Ctrl+Shift+I, Agent mode):
-
-```
-Install the panel-viz-mcp MCP server for this workspace.
-1. Clone: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
-2. Install: cd panel-viz-mcp && pip install -e .
-3. Create .vscode/mcp.json with the server command set to "panel-viz-mcp"
-4. Confirm the server is connected.
-```
-
-**Claude Code**:
-
-```
-Install the panel-viz-mcp MCP server.
-1. Clone: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
-2. Find my Python path (run "where python" on Windows or "which python3" on Mac/Linux)
-3. Install: cd panel-viz-mcp && pip install -e .
-4. Register: claude mcp add panel-viz-mcp -- panel-viz-mcp
-5. Confirm the server is registered.
-```
-
-**Claude Desktop** (Code tab):
-
-```
-Install the panel-viz-mcp MCP server.
-1. Clone: git clone https://github.com/AtharvaJaiswal005/panel-viz-mcp.git
-2. Find my Python path (run "where python" on Windows or "which python3" on Mac/Linux)
-3. Install: cd panel-viz-mcp && pip install -e .
-4. Add to claude_desktop_config.json with the Python path as command and ["-m", "panel_viz_mcp.server"] as args
-5. Tell me to restart Claude Desktop when done.
-```
-
-## Try These Prompts
-
-Just paste any of these into your AI chat and watch the magic happen.
-
-| Prompt | What you get |
-|--------|-------------|
-| `Create a bar chart showing quarterly revenue: Q1: 42000, Q2: 58000, Q3: 71000, Q4: 89000` | Interactive bar chart inline with hover tooltips and click insights |
-| `Create a dashboard of this sales data with filters: Region, Product, Sales...` | Full dashboard with chart + stats + table + working filter sidebar |
-| `Create a live streaming stock price chart starting at $150` | Real-time updating chart with play/pause/reset controls |
-| `Show me a bar chart and scatter plot of this data side by side` | Multi-chart grid layout from the same dataset |
-| `Create a geographic points map of India's major cities...` | Geographic map with tile basemaps (opens in Panel) |
-| `Create a candlestick chart for RELIANCE stock with this OHLC data...` | Candlestick chart with green/red candles (opens in Panel) |
-
-> **Want more?** The **[Demo Script](demos/DEMO_SCRIPT.md)** has 9 ready-to-use prompts with full data included - from simple bar charts to candlestick portfolio dashboards, medical image viewers, and ML model evaluators. Just copy, paste, and run.
-
-## Open in Panel
-
-Click the **"Open in Panel"** button on any inline chart to launch a full interactive Panel app in your browser with:
-- Chart inspector (change chart type, axes, colors, title live)
-- Tabulator data table with sorting/filtering/pagination
-- Number indicators (count, mean, min, max)
-- Filter sidebar with crossfiltering
-- Dark theme (FastListTemplate)
-
 ## Architecture
 
 ```
@@ -290,7 +307,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-51 tests cover all 15 tools, 13 chart types, edge cases, code generation, and security sandboxing.
+51 tests cover all 15 tools, 14 chart types, edge cases, code generation, and security sandboxing.
 
 ### Project structure
 
