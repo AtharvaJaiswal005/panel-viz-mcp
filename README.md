@@ -187,6 +187,21 @@ Install the panel-viz-mcp MCP server.
 ```
 </details>
 
+## MRVE - Minimum Reproducible Viable Example
+
+Want to understand the core concept without the full 15-tool server? `mrve.py` is a single-file (~200 lines) demo showing:
+
+1. **Inline rendering**: LLM calls `create_viz` -> hvPlot builds chart -> Bokeh `json_item()` -> BokehJS renders inside MCP Apps iframe
+2. **Bidirectional communication**: User clicks chart -> iframe calls `handle_click` via `callServerTool()` -> server computes insight -> UI displays it
+
+```bash
+fastmcp run mrve.py
+```
+
+2 tools (`create_viz`, `handle_click`), 1 HTML resource, 4 chart types (bar, line, scatter, area). That's it.
+
+---
+
 ## Try These Prompts
 
 Just paste any of these into your AI chat.
